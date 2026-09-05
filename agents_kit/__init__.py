@@ -12,4 +12,4 @@ the standard library.
     delivery      idempotent fulfilment that never drops a paid order
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
