@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agents-toolkit"
+version = "1.0.0"
+description = "Five things an autonomous agent gets wrong silently, and the code that stops each one. Dependency-free stdlib."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "Ahmed Mribai", email = "hello@get-agents-kit.com" }]
+keywords = [
+    "agents", "llm", "autonomous", "webhook", "idempotency",
+    "reliability", "observability", "fulfilment", "quality-gates",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+]
+# Deliberately empty, and it is the selling point: every module is standard library only.
+dependencies = []
+
+[project.urls]
+Homepage = "https://get-agents-kit.com/agents-kit/"
+Source = "https://github.com/ahmedmribai/agents-kit"
+Issues = "https://github.com/ahmedmribai/agents-kit/issues"
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents_kit"]
+
+[tool.hatch.build.targets.sdist]
+# The post-mortem is sold separately — it must never ride along in a published artifact.
+exclude = ["POSTMORTEM.md", "dist/", ".pytest_cache/", "__pycache__/"]
