@@ -1,0 +1,13 @@
+Agents Kit — post-mortem licence (the written incident analysis, sold separately).
+
+You may read it, quote it with attribution, and apply everything in it to your own
+systems, commercial or not.
+
+You may not redistribute or resell the post-mortem itself, in whole or in
+substantial part.
+
+The CODE in agents_kit/ is separately licensed under the MIT licence (see LICENSE)
+and carries no such restriction — copy it freely.
+
+No warranty. It is extracted from a production system and tested, but your money rail
+is your responsibility — verify it end to end before you rely on it.
