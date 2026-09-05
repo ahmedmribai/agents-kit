@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agents-toolkit"
-version = "1.0.0"
+version = "1.0.1"
 description = "Five things an autonomous agent gets wrong silently, and the code that stops each one. Dependency-free stdlib."
 readme = "README.md"
 requires-python = ">=3.9"
