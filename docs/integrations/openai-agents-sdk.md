@@ -23,11 +23,13 @@ importing the integration module does not require the optional dependency.
 
 ```python
 from agents import Agent, Runner
-from examples.openai_agents_sdk_guardrail import (
-    build_output_guardrail,
-    non_empty_output,
-    within_character_limit,
-)
+from agents_kit.integrations.openai_agents import build_output_guardrail
+
+def non_empty_output(output):
+    return bool(str(output).strip())
+
+def within_character_limit(output, limit=4000):
+    return len(str(output)) <= limit
 
 quality_guardrail = build_output_guardrail([
     non_empty_output,
