@@ -16,9 +16,10 @@ python -m pip install agents-toolkit openai-agents
 
 ## Attach an Agents Kit quality gate
 
-The example at [examples/openai_agents_sdk_guardrail.py](../../examples/openai_agents_sdk_guardrail.py)
-provides a small adapter factory. It converts ordinary Python checks into Agents Kit
-Judgements and then maps the GateResult to the SDK's GuardrailFunctionOutput.
+The optional adapter at [agents_kit/integrations/openai_agents.py](../../agents_kit/integrations/openai_agents.py)
+provides a small factory. It converts ordinary Python checks into Agents Kit Judgements and
+maps the GateResult to the SDK's GuardrailFunctionOutput. The SDK is imported lazily, so
+importing the integration module does not require the optional dependency.
 
 ```python
 from agents import Agent, Runner
