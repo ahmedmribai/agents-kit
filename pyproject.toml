@@ -39,7 +39,7 @@ Source = "https://github.com/ahmedmribai/agents-kit"
 Issues = "https://github.com/ahmedmribai/agents-kit/issues"
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = ["pytest>=9.2.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["agents_kit"]
