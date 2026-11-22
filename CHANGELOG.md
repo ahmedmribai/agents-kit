@@ -28,3 +28,6 @@ All notable project changes are documented here.
 - Add Python 3.14 to the supported test matrix and package classifiers; clarify PyPI discovery metadata.
 
 - Package the OpenAI Agents SDK adapter as an optional integration with lazy imports and unit-tested gate mapping.
+
+- Reject negative payment amounts and missing/invalid currency codes in webhook payloads; reject invalid quality-gate thresholds.
+- Use monotonic time for attention-arbitration urgency intervals.
