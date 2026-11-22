@@ -35,3 +35,6 @@ jobs:
 
       - name: Run test suite
         run: python -m pytest tests/ -q
+
+      - name: Run documentation example
+        run: python examples/basic_usage.py
