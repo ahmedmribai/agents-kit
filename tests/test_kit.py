@@ -203,10 +203,14 @@ def test_gate_unknown_when_a_judge_raises():
     assert r.verdict is gates.Verdict.UNKNOWN and r.allowed is True
 
 
-def test_partial_errors_still_score_on_what_was_measured():
-    r = gates.evaluate([_judge(ok=True), _judge(ok=True), _judge(error=True)], threshold=0.5)
-    assert r.judged == 2 and r.errors == 1
-    assert r.score == 1.0 and r.verdict is gates.Verdict.PASS
+def test_partial_errors_keep_diagnostic_score_but_return_unknown():
+    judges = [_judge(ok=True), _judge(ok=True), _judge(error=True)]
+    allowed = gates.evaluate(judges, threshold=0.5, unknown_policy="allow")
+    blocked = gates.evaluate(judges, threshold=0.5, unknown_policy="block")
+    assert allowed.judged == 2 and allowed.errors == 1
+    assert allowed.score == 1.0 and allowed.verdict is gates.Verdict.UNKNOWN
+    assert allowed.allowed is True
+    assert blocked.allowed is False
 
 
 def test_measure_only_mode_never_blocks():
