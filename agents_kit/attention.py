@@ -1,4 +1,4 @@
-"""agents_kit/attention.py — spend a tick's compute on what is worth doing, and prove nothing starves.
+"""agents_kit/attention.py — spend a tick's compute on what is worth doing, and surface starvation.
 
 An agent with more things to do than budget needs an arbiter. Mine scored bids as
 
