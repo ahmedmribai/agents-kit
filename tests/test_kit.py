@@ -20,10 +20,12 @@ def _signed(payload: dict) -> tuple[bytes, str]:
     return raw, sig
 
 
-def _order(oid="ord_1", total=9899, test_mode=False, email="buyer@example.com"):
+def _order(oid="ord_1", total=9899, test_mode=False, email="buyer@example.com", refunded_amount=None):
     return {"meta": {"custom_data": {"reference": "42"}},
-            "data": {"id": oid, "attributes": {"total": total, "test_mode": test_mode,
-                                               "user_email": email, "currency": "USD"}}}
+            "data": {"id": oid, "attributes": {"total": total,
+                                               "refunded_amount": total if refunded_amount is None else refunded_amount,
+                                               "test_mode": test_mode, "user_email": email,
+                                               "currency": "USD"}}}
 
 
 class FakeLedger:
@@ -62,7 +64,8 @@ def test_good_signature_records_once():
     ledger = FakeLedger()
     status, body = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
     assert status == 200 and body["recorded"] == 98.99
-    assert ledger.rows["ord_1"]["live"] is True
+    event = webhook_rail.parse(raw, "order_created")
+    assert event is not None and ledger.rows[event.id]["live"] is True
 
 
 def test_retry_does_not_double_count():
@@ -79,14 +82,16 @@ def test_test_mode_is_not_live_revenue():
     raw, sig = _signed(_order(test_mode=True))
     ledger = FakeLedger()
     webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
-    assert ledger.rows["ord_1"]["live"] is False
+    event = webhook_rail.parse(raw, "order_created")
+    assert event is not None and ledger.rows[event.id]["live"] is False
 
 
 def test_refund_books_negative():
     raw, sig = _signed(_order(oid="ord_r"))
     ledger = FakeLedger()
     webhook_rail.handle(raw, sig, "order_refunded", SECRET, ledger, lambda e: None)
-    assert ledger.rows["ord_r"]["amount"] == -98.99
+    event = webhook_rail.parse(raw, "order_refunded")
+    assert event is not None and ledger.rows[event.id]["amount"] == -98.99
 
 
 def test_fulfilment_failure_still_records_the_sale():
@@ -97,7 +102,8 @@ def test_fulfilment_failure_still_records_the_sale():
     ledger = FakeLedger()
     status, body = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, boom)
     assert status == 200 and "pending" in body["fulfilment"]
-    assert ledger.rows["ord_1"]["amount"] == 98.99      # the money is still on the books
+    event = webhook_rail.parse(raw, "order_created")
+    assert event is not None and ledger.rows[event.id]["amount"] == 98.99  # still recorded
 
 
 def test_malformed_body_is_400_not_a_crash():
@@ -120,6 +126,48 @@ def test_concurrent_duplicate_is_rejected_by_atomic_ledger_insert():
     assert first == second == 200
     assert body["status"] == "duplicate"
     assert len(ledger.rows) == 1
+
+
+def test_same_resource_can_have_distinct_webhook_event_types():
+    """An order-created event must not suppress a later refund for the same order."""
+    payload = _order(oid="same-order", refunded_amount=2500)
+    created_raw, created_sig = _signed(payload)
+    refunded_raw, refunded_sig = _signed(payload)
+    ledger = FakeLedger()
+
+    webhook_rail.handle(created_raw, created_sig, "order_created", SECRET, ledger, lambda e: None)
+    status, body = webhook_rail.handle(
+        refunded_raw, refunded_sig, "order_refunded", SECRET, ledger, lambda e: None
+    )
+
+    assert status == 200 and body["status"] == "ok"
+    assert len(ledger.rows) == 2
+    assert sorted(row["amount"] for row in ledger.rows.values()) == [-25.0, 98.99]
+
+
+def test_changed_payload_for_same_resource_is_a_distinct_event():
+    first_raw, _ = _signed(_order(oid="subscription-1", total=1000))
+    second_raw, _ = _signed(_order(oid="subscription-1", total=1200))
+    first = webhook_rail.parse(first_raw, "subscription_updated")
+    second = webhook_rail.parse(second_raw, "subscription_updated")
+    assert first is not None and second is not None
+    assert first.id != second.id
+
+
+def test_webhook_header_and_payload_event_names_must_match():
+    payload = _order()
+    payload["meta"]["event_name"] = "order_created"
+    raw, _ = _signed(payload)
+    assert webhook_rail.parse(raw, "order_refunded") is None
+
+
+def test_partial_refund_uses_refunded_amount_not_original_order_total():
+    raw, sig = _signed(_order(oid="partial-refund", total=9899, refunded_amount=2500))
+    ledger = FakeLedger()
+    status, body = webhook_rail.handle(raw, sig, "order_refunded", SECRET, ledger, lambda e: None)
+    event = webhook_rail.parse(raw, "order_refunded")
+    assert status == 200 and body["recorded"] == -25.0
+    assert event is not None and ledger.rows[event.id]["amount"] == -25.0
 
 
 # -- gates --------------------------------------------------------------------
