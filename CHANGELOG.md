@@ -12,3 +12,6 @@ All notable project changes are documented here.
 - Restrict delivery links to public HTTPS URLs and reject credentials, local destinations, and sales-page aliases.
 - Clarify that durable recovery, distributed coordination, and downstream idempotency remain integration responsibilities.
 - Expand regression coverage for malformed inputs and unsafe URLs.
+
+- Deduplicate Lemon Squeezy retries using an event/body fingerprint rather than the resource ID, and preserve distinct events for the same order or subscription.
+- Account for partial refunds using the provider's refunded amount and reject mismatched event-name headers.
