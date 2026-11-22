@@ -365,7 +365,7 @@ def test_urgency_lets_a_neglected_bid_eventually_win():
     a = attention.Arbiter(budget=1.0)
     fresh = attention.Bid("fresh", lambda: 1, cost=0.5, value=0.9, info=0.9)
     neglected = attention.Bid("neglected", lambda: 1, cost=0.5, value=0.1, info=0.1)
-    a._last_run["fresh"] = time.time()          # just ran
+    a._last_run["fresh"] = time.monotonic()          # just ran
     # neglected has never run, so its urgency is 1.0
     assert "neglected" in [b.name for b in a.choose([fresh, neglected])]
 
