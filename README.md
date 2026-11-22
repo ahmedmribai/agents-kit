@@ -189,6 +189,16 @@ Bug reports and focused feature requests are welcome through the repository's is
 Agents Kit is looking for its first external developers to try the framework adapters in
 small, real workflows and report what works, what fails, and what should change.
 
+Until version 1.1.0 is published on PyPI, install the merged release candidate directly from
+GitHub:
+
+```bash
+python -m pip install "git+https://github.com/ahmedmribai/agents-kit.git@main"
+```
+
+Install only the framework you plan to use (for example, `langchain`, `openai-agents`, or
+`crewai`) separately.
+
 - [Try the integrations](docs/integrations/)
 - [Help validate the first integrations](https://github.com/ahmedmribai/agents-kit/issues/3)
 - [Report a reproducible bug](https://github.com/ahmedmribai/agents-kit/issues/new?template=bug_report.yml)
