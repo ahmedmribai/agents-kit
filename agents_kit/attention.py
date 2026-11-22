@@ -87,7 +87,7 @@ class Arbiter:
         last = self._last_run.get(bid.name)
         if last is None:
             return 1.0                      # never run ⇒ maximally urgent
-        return min(1.0, (time.time() - last) / max(1.0, bid.stale_after_s))
+        return min(1.0, (time.monotonic() - last) / max(1.0, bid.stale_after_s))
 
     def score(self, bid: Bid) -> float:
         raw = (self.w_value * bid.value + self.w_info * bid.info
@@ -116,7 +116,7 @@ class Arbiter:
         chosen = self.choose(bids)
         results = {}
         for bid in chosen:
-            self._last_run[bid.name] = time.time()
+            self._last_run[bid.name] = time.monotonic()
             self._wins[bid.name] = self._wins.get(bid.name, 0) + 1
             try:
                 results[bid.name] = bid.run() if callable(bid.run) else None
