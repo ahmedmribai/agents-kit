@@ -124,14 +124,19 @@ def parse(raw_body: bytes, event_name: str) -> Event | None:
         amount = round(float(total) / 100.0, 2)
     except (TypeError, ValueError, OverflowError):
         return None
-    if not math.isfinite(amount):
+    if not math.isfinite(amount) or amount < 0:
+        return None
+
+    currency_value = attrs.get("currency")
+    if (not isinstance(currency_value, str) or len(currency_value) != 3
+            or not currency_value.isascii() or not currency_value.isalpha()):
         return None
 
     return Event(
         id=event_id,
         kind=kind,
         amount=amount,
-        currency=str(attrs.get("currency") or "USD").upper(),
+        currency=currency_value.upper(),
         email=str(attrs.get("user_email") or "").strip(),
         live=not test_mode,
         reference=str(custom.get("reference") or custom.get("venture_id") or "").strip(),
