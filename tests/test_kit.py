@@ -336,6 +336,36 @@ def test_a_raising_bid_does_not_kill_the_tick():
     assert out["results"]["good"] == "ok" and "error" in out["results"]["bad"]
 
 
+
+def test_arbiter_rejects_invalid_costs_weights_and_duplicate_names():
+    for kwargs in ({"cost": -1}, {"cost": float("nan")}, {"value": 2}, {"stale_after_s": 0}):
+        try:
+            attention.Bid("invalid", lambda: None, **kwargs)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid bid configuration was accepted")
+
+    try:
+        attention.Arbiter(budget=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("negative budget was accepted")
+
+    arbiter = attention.Arbiter()
+    duplicate_bids = [
+        attention.Bid("same", lambda: None),
+        attention.Bid("same", lambda: None),
+    ]
+    try:
+        arbiter.choose(duplicate_bids)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("duplicate bid names were accepted")
+
+
 # -- delivery -----------------------------------------------------------------
 
 class FakeStore:
