@@ -36,10 +36,12 @@ provider-specific behavior. Read this page before wiring a module into a live sy
 ## Quality gates
 
 `Verdict.UNKNOWN` is allowed by default for backwards compatibility, but callers can choose
-`unknown_policy="block"` to fail closed when judges cannot produce a result. Use that policy
-for authorization, security checks, payments, compliance, or irreversible actions. The
-result exposes the selected policy through `GateResult.unknown_policy` and the final decision
-through `GateResult.allowed`.
+`unknown_policy="block"` to fail closed when judges cannot produce a result. Any judge error
+makes the overall verdict UNKNOWN, even when other judges passed; the partial score remains
+available for diagnostics but is not treated as complete evidence. Use the block policy for
+authorization, security checks, payments, compliance, or irreversible actions. The result
+exposes the selected policy through `GateResult.unknown_policy` and the final decision through
+`GateResult.allowed`.
 
 ## Staleness monitor
 
