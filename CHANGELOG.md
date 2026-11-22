@@ -4,7 +4,7 @@ All notable project changes are documented here.
 
 ## Unreleased
 
-## 1.0.2 - 2026-11-22
+## 1.1.0 - 2026-11-22
 
 ### Reliability and correctness
 - Use a fingerprint of the event name and exact signed body bytes for Lemon Squeezy webhook retry deduplication instead of the underlying resource ID.
