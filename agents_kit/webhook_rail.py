@@ -26,7 +26,7 @@ class AlreadyHandled(Exception):
 
 
 class Ledger(Protocol):
-    """Your storage. Two operations, both of which must be atomic."""
+    """Your storage. record() must atomically enforce event ID uniqueness."""
 
     def seen(self, event_id: str) -> bool: ...
     def record(self, event_id: str, amount: float, currency: str, live: bool) -> None:
