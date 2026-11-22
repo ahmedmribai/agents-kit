@@ -26,3 +26,5 @@ All notable project changes are documented here.
 - Compile all package and example modules in CI, including optional integration examples.
 
 - Add Python 3.14 to the supported test matrix and package classifiers; clarify PyPI discovery metadata.
+
+- Package the OpenAI Agents SDK adapter as an optional integration with lazy imports and unit-tested gate mapping.
