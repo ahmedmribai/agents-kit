@@ -12,4 +12,4 @@ the standard library.
     delivery      idempotent fulfilment with explicit pending outcomes
 """
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
