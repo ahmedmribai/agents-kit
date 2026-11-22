@@ -17,3 +17,5 @@ All notable project changes are documented here.
 - Account for partial refunds using the provider's refunded amount and reject mismatched event-name headers.
 
 - Add an explicit fail-closed option for quality-gate UNKNOWN results and handle invalid judge return values without crashing.
+
+- Validate staleness measurements and attention-arbitration configuration, rejecting invalid counts, costs, weights, budgets, and duplicate bid names.
