@@ -71,6 +71,7 @@ jobs:
 
   publish:
     name: Publish verified artifacts to PyPI
+    if: github.event.release.prerelease == false
     needs: build
     runs-on: ubuntu-24.04
     environment:
