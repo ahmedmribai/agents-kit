@@ -112,7 +112,7 @@ def parse(raw_body: bytes, event_name: str) -> Event | None:
     # (for example order_refunded after order_created) on the same resource. The
     # provider does not include a distinct delivery UUID in its documented payload,
     # so use a stable fingerprint of the event name and exact signed bytes.
-    event_id = hashlib.sha256(kind.encode("utf-8") + b"\\0" + (raw_body or b"")).hexdigest()
+    event_id = hashlib.sha256(kind.encode("utf-8") + b"\0" + (raw_body or b"")).hexdigest()
 
     # Refund events use the actual refunded amount, which can be partial, rather than
     # the original order or invoice total.
