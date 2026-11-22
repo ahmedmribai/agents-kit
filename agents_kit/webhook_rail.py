@@ -29,7 +29,12 @@ class Ledger(Protocol):
     """Your storage. Two operations, both of which must be atomic."""
 
     def seen(self, event_id: str) -> bool: ...
-    def record(self, event_id: str, amount: float, currency: str, live: bool) -> None: ...
+    def record(self, event_id: str, amount: float, currency: str, live: bool) -> None:
+        """Atomically insert under a UNIQUE event_id constraint.
+
+        Raise AlreadyHandled if another request has already inserted the event.
+        The preceding seen() call is only a fast path, not a concurrency guard.
+        """ ...
 
 
 @dataclass(frozen=True)
@@ -134,7 +139,12 @@ def handle(raw_body: bytes, signature: str, event_name: str, secret: str,
         return 200, {"status": "duplicate", "id": event.id}
 
     amount = -event.amount if event.is_refund else event.amount
-    ledger.record(event.id, amount, event.currency, event.live)
+    try:
+        # record() must enforce uniqueness atomically in persistent storage. The initial
+        # seen() check alone cannot prevent concurrent deliveries racing past it.
+        ledger.record(event.id, amount, event.currency, event.live)
+    except AlreadyHandled:
+        return 200, {"status": "duplicate", "id": event.id}
 
     try:
         fulfil(event)
