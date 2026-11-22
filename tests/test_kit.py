@@ -11,6 +11,7 @@ import math
 import time
 
 from agents_kit import attention, delivery, gates, staleness, webhook_rail
+from agents_kit.integrations.openai_agents import evaluate_output
 
 SECRET = "test-signing-secret"
 
@@ -240,6 +241,34 @@ def test_invalid_judge_result_is_recorded_as_measurement_error():
 
 def test_invalid_unknown_policy_fails_closed():
     result = gates.evaluate([_judge(error=True)], unknown_policy="permit")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+
+def test_openai_agents_adapter_passes_when_all_output_checks_pass():
+    result = evaluate_output("A valid answer.", [lambda output: bool(output), lambda output: len(output) < 100])
+    assert result.verdict is gates.Verdict.PASS
+    assert result.allowed is True
+
+
+def test_openai_agents_adapter_blocks_when_a_check_fails():
+    result = evaluate_output("x", [lambda output: len(output) > 10])
+    assert result.verdict is gates.Verdict.BLOCK
+    assert result.allowed is False
+
+
+def test_openai_agents_adapter_fails_closed_when_a_check_raises():
+    def unavailable(output):
+        raise TimeoutError("validator unavailable")
+
+    result = evaluate_output("answer", [lambda output: True, unavailable])
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+def test_openai_agents_adapter_fails_closed_without_checks():
+    result = evaluate_output("answer", [])
     assert result.verdict is gates.Verdict.UNKNOWN
     assert result.allowed is False
 
