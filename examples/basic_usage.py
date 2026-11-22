@@ -52,8 +52,8 @@ def demonstrate_delivery():
     result = delivery.deliver(
         "demo-order-1",
         "buyer@example.test",
-        ["https://downloads.example.test/guide.pdf"],
-        ["https://shop.example.test/product"],
+        ["https://downloads.example.com/guide.pdf"],
+        ["https://shop.example.com/product"],
         store,
         lambda recipient, links: True,  # Replace with your mail/provider adapter.
     )
