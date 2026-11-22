@@ -36,7 +36,7 @@ agents_kit.attention      budget arbitration with starvation visibility
 agents_kit.delivery       validated HTTPS links and explicit fulfilment outcomes
 ```
 
-53 tests cover the five reliability modules, optional adapter decisions, and security edge cases:
+56 tests cover the five reliability modules, optional adapter decisions, and security edge cases:
 
 ```bash
 pip install pytest && python -m pytest tests/ -q
@@ -178,6 +178,6 @@ or end-to-end monitoring. Before using them in a live system, read
 - [Citing Agents Kit](CITATION.cff)
 - [Changelog](CHANGELOG.md)
 
-Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md).
+Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md), [LangChain / LangGraph](docs/integrations/langchain.md), and [CrewAI](docs/integrations/crewai.md).
 
 Bug reports and focused feature requests are welcome through the repository's issue templates.
