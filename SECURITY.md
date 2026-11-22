@@ -10,18 +10,16 @@ guarantee is offered.
 
 Please do not disclose exploitable vulnerabilities in a public GitHub issue.
 
-Email **hello@get-agents-kit.com** with:
-
-- A concise description of the vulnerability.
-- The affected module, version, and relevant configuration.
-- Reproduction steps or a minimal proof of concept.
-- The potential impact and any suggested mitigation.
+If GitHub's private vulnerability reporting is enabled for this repository, use the
+**Report a vulnerability** option on the repository's Security tab. Otherwise, contact
+the maintainer through the contact method listed on the maintainer's public GitHub profile
+and ask for a private reporting channel before sending technical details.
 
 Do not include real credentials, payment details, customer information, or other sensitive
 production data. Use synthetic examples.
 
-You should receive an acknowledgement when the report is reviewed. Please allow reasonable
-time for investigation and a fix before publicly disclosing the issue.
+Please allow reasonable time for investigation and a fix before publicly disclosing an
+unresolved vulnerability. Acknowledgement and remediation timelines are best-effort.
 
 ## Scope and deployment responsibilities
 
