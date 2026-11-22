@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import math
 from typing import Callable, Sequence
 
 
@@ -51,6 +52,11 @@ def evaluate(judges: Sequence[Callable[[], Judgement]], threshold: float = 0.5,
     Use "block" for authorization, security, payments, compliance, and irreversible
     actions. enabled=False is measure-only mode and never blocks.
     """
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+        raise ValueError("threshold must be a finite number between 0 and 1")
+    if not math.isfinite(float(threshold)) or not 0 <= threshold <= 1:
+        raise ValueError("threshold must be a finite number between 0 and 1")
+
     policy_valid = unknown_policy in ("allow", "block")
     policy = unknown_policy if policy_valid else "block"
     judged = errors = passed = 0
