@@ -66,6 +66,27 @@ jobs:
       - name: Validate distribution metadata
         run: python -m twine check dist/*
 
+  framework-integrations:
+    name: LangChain middleware integration smoke test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install LangChain and package
+        run: |
+          python -m pip install --upgrade pip langchain
+          python -m pip install -e .
+
+      - name: Verify middleware factory
+        run: |
+          python -c "from agents_kit.integrations.langchain import build_output_gate_middleware; middleware = build_output_gate_middleware([lambda text: bool(text.strip())]); assert middleware.get_name() == 'agents_kit_output_gate'"
+
   openai-agents:
     name: OpenAI Agents SDK adapter smoke test
     runs-on: ubuntu-24.04
