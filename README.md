@@ -29,14 +29,14 @@ pip install agents-toolkit
 The distribution is `agents-toolkit`; the import is `agents_kit`.
 
 ```
-agents_kit.webhook_rail   a payment rail that cannot silently lose money
-agents_kit.gates          quality gates with explicit UNKNOWN allow/block policy "couldn't measure", CLOSED on "measured bad"
+agents_kit.webhook_rail   signed webhook verification, retry deduplication, explicit ledger contracts
+agents_kit.gates          quality gates with explicit UNKNOWN allow/block policy
 agents_kit.staleness      catch loops that run forever and produce nothing
 agents_kit.attention      budget arbitration that proves nothing starves
-agents_kit.delivery       idempotent fulfilment that never drops a paid order
+agents_kit.delivery       validated HTTPS links and explicit fulfilment outcomes
 ```
 
-40 tests cover all five incidents, including malformed webhook payloads and unsafe delivery URLs:
+53 tests cover the five reliability modules, optional adapter decisions, and security edge cases:
 
 ```bash
 pip install pytest && python -m pytest tests/ -q
