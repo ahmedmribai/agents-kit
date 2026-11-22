@@ -21,6 +21,7 @@ Two defences, both here:
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -36,6 +37,24 @@ class Bid:
     cost: float = 1.0              # budget units consumed if it runs
     stale_after_s: float = 7 * 86400   # urgency saturates at 1.0 after this long unchosen
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("bid name must be a non-empty string")
+        for field_name in ("value", "info"):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+            if not math.isfinite(float(value)) or not 0 <= value <= 1:
+                raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+        if isinstance(self.cost, bool) or not isinstance(self.cost, (int, float)):
+            raise ValueError("cost must be a finite, non-negative number")
+        if not math.isfinite(float(self.cost)) or self.cost < 0:
+            raise ValueError("cost must be a finite, non-negative number")
+        if isinstance(self.stale_after_s, bool) or not isinstance(self.stale_after_s, (int, float)):
+            raise ValueError("stale_after_s must be a finite positive number")
+        if not math.isfinite(float(self.stale_after_s)) or self.stale_after_s <= 0:
+            raise ValueError("stale_after_s must be a finite positive number")
+
 
 @dataclass
 class Arbiter:
@@ -47,6 +66,22 @@ class Arbiter:
     _last_run: dict[str, float] = field(default_factory=dict)
     _wins: dict[str, int] = field(default_factory=dict)
     _seen: set[str] = field(default_factory=set)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.budget, bool) or not isinstance(self.budget, (int, float)):
+            raise ValueError("budget must be a finite, non-negative number")
+        if not math.isfinite(float(self.budget)) or self.budget < 0:
+            raise ValueError("budget must be a finite, non-negative number")
+        weights = (self.w_value, self.w_info, self.w_urgency)
+        if any(isinstance(w, bool) or not isinstance(w, (int, float))
+               or not math.isfinite(float(w)) or w < 0 for w in weights):
+            raise ValueError("weights must be finite, non-negative numbers")
+        if sum(weights) <= 0:
+            raise ValueError("at least one arbitration weight must be positive")
+        if isinstance(self.min_score, bool) or not isinstance(self.min_score, (int, float)):
+            raise ValueError("min_score must be a finite, non-negative number")
+        if not math.isfinite(float(self.min_score)) or self.min_score < 0:
+            raise ValueError("min_score must be a finite, non-negative number")
 
     def urgency(self, bid: Bid) -> float:
         last = self._last_run.get(bid.name)
@@ -61,6 +96,9 @@ class Arbiter:
 
     def choose(self, bids: list[Bid]) -> list[Bid]:
         """Greedy under budget. Pure — does not run anything."""
+        names = [b.name for b in bids]
+        if len(names) != len(set(names)):
+            raise ValueError("bid names must be unique within an arbitration")
         for b in bids:
             self._seen.add(b.name)
         ranked = sorted(bids, key=self.score, reverse=True)
