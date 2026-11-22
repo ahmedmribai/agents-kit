@@ -20,6 +20,7 @@ Track the OUTPUT DELTA, and alarm when it is zero N times running.
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -50,8 +51,18 @@ class StalenessMonitor:
     patience: int = 5
     _tracks: dict[str, _Track] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        if isinstance(self.patience, bool) or not isinstance(self.patience, int) or self.patience < 1:
+            raise ValueError("patience must be a positive integer")
+
     def record(self, task: str, produced: float) -> bool:
         """Log one tick. Returns True if `task` is now considered stale."""
+        if not isinstance(task, str) or not task.strip():
+            raise ValueError("task must be a non-empty string")
+        if isinstance(produced, bool) or not isinstance(produced, (int, float)):
+            raise ValueError("produced must be a finite, non-negative number")
+        if not math.isfinite(float(produced)) or produced < 0:
+            raise ValueError("produced must be a finite, non-negative number")
         t = self._tracks.setdefault(task, _Track())
         t.total_ticks += 1
         if produced > 0:

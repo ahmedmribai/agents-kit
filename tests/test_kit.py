@@ -7,9 +7,13 @@ If you change a module, these must stay green.
 import hashlib
 import hmac
 import json
+import math
 import time
 
 from agents_kit import attention, delivery, gates, staleness, webhook_rail
+from agents_kit.integrations.openai_agents import evaluate_output
+from agents_kit.integrations.crewai import build_task_guardrail
+from agents_kit.integrations.langchain import _message_text
 
 SECRET = "test-signing-secret"
 
@@ -20,10 +24,12 @@ def _signed(payload: dict) -> tuple[bytes, str]:
     return raw, sig
 
 
-def _order(oid="ord_1", total=9899, test_mode=False, email="buyer@example.com"):
+def _order(oid="ord_1", total=9899, test_mode=False, email="buyer@example.com", refunded_amount=None):
     return {"meta": {"custom_data": {"reference": "42"}},
-            "data": {"id": oid, "attributes": {"total": total, "test_mode": test_mode,
-                                               "user_email": email, "currency": "USD"}}}
+            "data": {"id": oid, "attributes": {"total": total,
+                                               "refunded_amount": total if refunded_amount is None else refunded_amount,
+                                               "test_mode": test_mode, "user_email": email,
+                                               "currency": "USD"}}}
 
 
 class FakeLedger:
@@ -34,6 +40,9 @@ class FakeLedger:
         return event_id in self.rows
 
     def record(self, event_id, amount, currency, live):
+        # Simulate a database UNIQUE constraint: the insert is atomic.
+        if event_id in self.rows:
+            raise webhook_rail.AlreadyHandled(event_id)
         self.rows[event_id] = {"amount": amount, "currency": currency, "live": live}
 
 
@@ -59,7 +68,8 @@ def test_good_signature_records_once():
     ledger = FakeLedger()
     status, body = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
     assert status == 200 and body["recorded"] == 98.99
-    assert ledger.rows["ord_1"]["live"] is True
+    event = webhook_rail.parse(raw, "order_created")
+    assert event is not None and ledger.rows[event.id]["live"] is True
 
 
 def test_retry_does_not_double_count():
@@ -76,14 +86,16 @@ def test_test_mode_is_not_live_revenue():
     raw, sig = _signed(_order(test_mode=True))
     ledger = FakeLedger()
     webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
-    assert ledger.rows["ord_1"]["live"] is False
+    event = webhook_rail.parse(raw, "order_created")
+    assert event is not None and ledger.rows[event.id]["live"] is False
 
 
 def test_refund_books_negative():
     raw, sig = _signed(_order(oid="ord_r"))
     ledger = FakeLedger()
     webhook_rail.handle(raw, sig, "order_refunded", SECRET, ledger, lambda e: None)
-    assert ledger.rows["ord_r"]["amount"] == -98.99
+    event = webhook_rail.parse(raw, "order_refunded")
+    assert event is not None and ledger.rows[event.id]["amount"] == -98.99
 
 
 def test_fulfilment_failure_still_records_the_sale():
@@ -94,7 +106,8 @@ def test_fulfilment_failure_still_records_the_sale():
     ledger = FakeLedger()
     status, body = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, boom)
     assert status == 200 and "pending" in body["fulfilment"]
-    assert ledger.rows["ord_1"]["amount"] == 98.99      # the money is still on the books
+    event = webhook_rail.parse(raw, "order_created")
+    assert event is not None and ledger.rows[event.id]["amount"] == 98.99  # still recorded
 
 
 def test_malformed_body_is_400_not_a_crash():
@@ -102,6 +115,63 @@ def test_malformed_body_is_400_not_a_crash():
     status, _ = webhook_rail.handle(b"not json", sig, "order_created", SECRET,
                                     FakeLedger(), lambda e: None)
     assert status == 400
+
+
+def test_concurrent_duplicate_is_rejected_by_atomic_ledger_insert():
+    """Two requests can both pass seen(); the unique insert must still deduplicate."""
+    class RacingLedger(FakeLedger):
+        def seen(self, event_id):
+            return False  # Simulate both requests checking before either inserts.
+
+    raw, sig = _signed(_order())
+    ledger = RacingLedger()
+    first, _ = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
+    second, body = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
+    assert first == second == 200
+    assert body["status"] == "duplicate"
+    assert len(ledger.rows) == 1
+
+
+def test_same_resource_can_have_distinct_webhook_event_types():
+    """An order-created event must not suppress a later refund for the same order."""
+    payload = _order(oid="same-order", refunded_amount=2500)
+    created_raw, created_sig = _signed(payload)
+    refunded_raw, refunded_sig = _signed(payload)
+    ledger = FakeLedger()
+
+    webhook_rail.handle(created_raw, created_sig, "order_created", SECRET, ledger, lambda e: None)
+    status, body = webhook_rail.handle(
+        refunded_raw, refunded_sig, "order_refunded", SECRET, ledger, lambda e: None
+    )
+
+    assert status == 200 and body["status"] == "ok"
+    assert len(ledger.rows) == 2
+    assert sorted(row["amount"] for row in ledger.rows.values()) == [-25.0, 98.99]
+
+
+def test_changed_payload_for_same_resource_is_a_distinct_event():
+    first_raw, _ = _signed(_order(oid="subscription-1", total=1000))
+    second_raw, _ = _signed(_order(oid="subscription-1", total=1200))
+    first = webhook_rail.parse(first_raw, "subscription_updated")
+    second = webhook_rail.parse(second_raw, "subscription_updated")
+    assert first is not None and second is not None
+    assert first.id != second.id
+
+
+def test_webhook_header_and_payload_event_names_must_match():
+    payload = _order()
+    payload["meta"]["event_name"] = "order_created"
+    raw, _ = _signed(payload)
+    assert webhook_rail.parse(raw, "order_refunded") is None
+
+
+def test_partial_refund_uses_refunded_amount_not_original_order_total():
+    raw, sig = _signed(_order(oid="partial-refund", total=9899, refunded_amount=2500))
+    ledger = FakeLedger()
+    status, body = webhook_rail.handle(raw, sig, "order_refunded", SECRET, ledger, lambda e: None)
+    event = webhook_rail.parse(raw, "order_refunded")
+    assert status == 200 and body["recorded"] == -25.0
+    assert event is not None and ledger.rows[event.id]["amount"] == -25.0
 
 
 # -- gates --------------------------------------------------------------------
@@ -136,15 +206,110 @@ def test_gate_unknown_when_a_judge_raises():
     assert r.verdict is gates.Verdict.UNKNOWN and r.allowed is True
 
 
-def test_partial_errors_still_score_on_what_was_measured():
-    r = gates.evaluate([_judge(ok=True), _judge(ok=True), _judge(error=True)], threshold=0.5)
-    assert r.judged == 2 and r.errors == 1
-    assert r.score == 1.0 and r.verdict is gates.Verdict.PASS
+def test_partial_errors_keep_diagnostic_score_but_return_unknown():
+    judges = [_judge(ok=True), _judge(ok=True), _judge(error=True)]
+    allowed = gates.evaluate(judges, threshold=0.5, unknown_policy="allow")
+    blocked = gates.evaluate(judges, threshold=0.5, unknown_policy="block")
+    assert allowed.judged == 2 and allowed.errors == 1
+    assert allowed.score == 1.0 and allowed.verdict is gates.Verdict.UNKNOWN
+    assert allowed.allowed is True
+    assert blocked.allowed is False
 
 
 def test_measure_only_mode_never_blocks():
     r = gates.evaluate([_judge(ok=False)] * 4, threshold=0.5, enabled=False)
     assert r.verdict is gates.Verdict.PASS and r.score == 0.0
+
+
+
+def test_gate_unknown_can_be_configured_to_fail_closed():
+    result = gates.evaluate([_judge(error=True)] * 2, unknown_policy="block")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+def test_measure_only_mode_never_blocks_even_when_every_judge_fails():
+    result = gates.evaluate([_judge(error=True)], enabled=False, unknown_policy="block")
+    assert result.verdict is gates.Verdict.PASS
+    assert result.allowed is True
+
+
+def test_invalid_judge_result_is_recorded_as_measurement_error():
+    result = gates.evaluate([lambda: None], unknown_policy="block")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.errors == 1
+    assert result.allowed is False
+
+
+def test_invalid_unknown_policy_fails_closed():
+    result = gates.evaluate([_judge(error=True)], unknown_policy="permit")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+
+def test_openai_agents_adapter_passes_when_all_output_checks_pass():
+    result = evaluate_output("A valid answer.", [lambda output: bool(output), lambda output: len(output) < 100])
+    assert result.verdict is gates.Verdict.PASS
+    assert result.allowed is True
+
+
+def test_openai_agents_adapter_blocks_when_a_check_fails():
+    result = evaluate_output("x", [lambda output: len(output) > 10])
+    assert result.verdict is gates.Verdict.BLOCK
+    assert result.allowed is False
+
+
+def test_openai_agents_adapter_fails_closed_when_a_check_raises():
+    def unavailable(output):
+        raise TimeoutError("validator unavailable")
+
+    result = evaluate_output("answer", [lambda output: True, unavailable])
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+def test_openai_agents_adapter_fails_closed_without_checks():
+    result = evaluate_output("answer", [])
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+
+def test_gate_rejects_invalid_threshold_configuration():
+    for threshold in (-0.1, 1.1, float("nan"), True):
+        try:
+            gates.evaluate([_judge(ok=True)], threshold=threshold)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid threshold was accepted")
+
+
+
+def test_crewai_guardrail_accepts_valid_output():
+    guardrail = build_task_guardrail([lambda output: bool(output.raw.strip())])
+    accepted, value = guardrail(type("TaskOutput", (), {"raw": "A useful result"})())
+    assert accepted is True
+    assert value.raw == "A useful result"
+
+
+def test_crewai_guardrail_returns_feedback_for_failed_or_unknown_checks():
+    rejected, feedback = build_task_guardrail([lambda output: False])("bad")
+    assert rejected is False
+    assert "failed" in feedback
+
+    def unavailable(output):
+        raise TimeoutError("validator unavailable")
+
+    rejected, feedback = build_task_guardrail([unavailable])("uncertain")
+    assert rejected is False
+    assert "could not be completed" in feedback
+
+
+def test_langchain_adapter_extracts_text_from_string_and_multimodal_content():
+    assert _message_text(type("Message", (), {"content": "hello"})()) == "hello"
+    assert _message_text(type("Message", (), {"content": [{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}]})()) == "hello world"
 
 
 # -- staleness ----------------------------------------------------------------
@@ -179,6 +344,26 @@ def test_report_ranks_worst_first():
     assert m.report()[0]["task"] == "dead" and m.report()[0]["stale"] is True
 
 
+
+def test_staleness_rejects_invalid_patience_and_output_counts():
+    for patience in (0, -1, True):
+        try:
+            staleness.StalenessMonitor(patience=patience)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid patience was accepted")
+
+    monitor = staleness.StalenessMonitor()
+    for produced in (-1, float("nan"), float("inf"), True):
+        try:
+            monitor.record("worker", produced)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid output measurement was accepted")
+
+
 # -- attention ----------------------------------------------------------------
 
 def test_expensive_bid_is_reported_as_starving():
@@ -208,7 +393,7 @@ def test_urgency_lets_a_neglected_bid_eventually_win():
     a = attention.Arbiter(budget=1.0)
     fresh = attention.Bid("fresh", lambda: 1, cost=0.5, value=0.9, info=0.9)
     neglected = attention.Bid("neglected", lambda: 1, cost=0.5, value=0.1, info=0.1)
-    a._last_run["fresh"] = time.time()          # just ran
+    a._last_run["fresh"] = time.monotonic()          # just ran
     # neglected has never run, so its urgency is 1.0
     assert "neglected" in [b.name for b in a.choose([fresh, neglected])]
 
@@ -221,6 +406,36 @@ def test_a_raising_bid_does_not_kill_the_tick():
     out = a.run([attention.Bid("bad", boom, cost=1.0),
                  attention.Bid("good", lambda: "ok", cost=1.0)])
     assert out["results"]["good"] == "ok" and "error" in out["results"]["bad"]
+
+
+
+def test_arbiter_rejects_invalid_costs_weights_and_duplicate_names():
+    for kwargs in ({"cost": -1}, {"cost": float("nan")}, {"value": 2}, {"stale_after_s": 0}):
+        try:
+            attention.Bid("invalid", lambda: None, **kwargs)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid bid configuration was accepted")
+
+    try:
+        attention.Arbiter(budget=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("negative budget was accepted")
+
+    arbiter = attention.Arbiter()
+    duplicate_bids = [
+        attention.Bid("same", lambda: None),
+        attention.Bid("same", lambda: None),
+    ]
+    try:
+        arbiter.choose(duplicate_bids)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("duplicate bid names were accepted")
 
 
 # -- delivery -----------------------------------------------------------------

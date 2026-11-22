@@ -1,4 +1,4 @@
-"""agents_kit/attention.py — spend a tick's compute on what is worth doing, and prove nothing starves.
+"""agents_kit/attention.py — spend a tick's compute on what is worth doing, and surface starvation.
 
 An agent with more things to do than budget needs an arbiter. Mine scored bids as
 
@@ -15,12 +15,14 @@ disabled them was a tunable nobody thought of as a switch.
 
 Two defences, both here:
   * `starving()` names any bid that has never won. Alarm on it.
-  * urgency rises the longer a bid goes unchosen, so an expensive bid eventually outbids
-    cheap ones instead of losing on ratio forever.
+  * urgency rises the longer a bid goes unchosen, which can improve its ranking. This is a
+    heuristic, not a fairness guarantee: an unaffordable bid or one that never clears the
+    score threshold can still starve. Use feasible() and starving() to expose those cases.
 """
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -36,6 +38,24 @@ class Bid:
     cost: float = 1.0              # budget units consumed if it runs
     stale_after_s: float = 7 * 86400   # urgency saturates at 1.0 after this long unchosen
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("bid name must be a non-empty string")
+        for field_name in ("value", "info"):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+            if not math.isfinite(float(value)) or not 0 <= value <= 1:
+                raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+        if isinstance(self.cost, bool) or not isinstance(self.cost, (int, float)):
+            raise ValueError("cost must be a finite, non-negative number")
+        if not math.isfinite(float(self.cost)) or self.cost < 0:
+            raise ValueError("cost must be a finite, non-negative number")
+        if isinstance(self.stale_after_s, bool) or not isinstance(self.stale_after_s, (int, float)):
+            raise ValueError("stale_after_s must be a finite positive number")
+        if not math.isfinite(float(self.stale_after_s)) or self.stale_after_s <= 0:
+            raise ValueError("stale_after_s must be a finite positive number")
+
 
 @dataclass
 class Arbiter:
@@ -48,11 +68,27 @@ class Arbiter:
     _wins: dict[str, int] = field(default_factory=dict)
     _seen: set[str] = field(default_factory=set)
 
+    def __post_init__(self) -> None:
+        if isinstance(self.budget, bool) or not isinstance(self.budget, (int, float)):
+            raise ValueError("budget must be a finite, non-negative number")
+        if not math.isfinite(float(self.budget)) or self.budget < 0:
+            raise ValueError("budget must be a finite, non-negative number")
+        weights = (self.w_value, self.w_info, self.w_urgency)
+        if any(isinstance(w, bool) or not isinstance(w, (int, float))
+               or not math.isfinite(float(w)) or w < 0 for w in weights):
+            raise ValueError("weights must be finite, non-negative numbers")
+        if sum(weights) <= 0:
+            raise ValueError("at least one arbitration weight must be positive")
+        if isinstance(self.min_score, bool) or not isinstance(self.min_score, (int, float)):
+            raise ValueError("min_score must be a finite, non-negative number")
+        if not math.isfinite(float(self.min_score)) or self.min_score < 0:
+            raise ValueError("min_score must be a finite, non-negative number")
+
     def urgency(self, bid: Bid) -> float:
         last = self._last_run.get(bid.name)
         if last is None:
             return 1.0                      # never run ⇒ maximally urgent
-        return min(1.0, (time.time() - last) / max(1.0, bid.stale_after_s))
+        return min(1.0, (time.monotonic() - last) / max(1.0, bid.stale_after_s))
 
     def score(self, bid: Bid) -> float:
         raw = (self.w_value * bid.value + self.w_info * bid.info
@@ -61,6 +97,9 @@ class Arbiter:
 
     def choose(self, bids: list[Bid]) -> list[Bid]:
         """Greedy under budget. Pure — does not run anything."""
+        names = [b.name for b in bids]
+        if len(names) != len(set(names)):
+            raise ValueError("bid names must be unique within an arbitration")
         for b in bids:
             self._seen.add(b.name)
         ranked = sorted(bids, key=self.score, reverse=True)
@@ -78,7 +117,7 @@ class Arbiter:
         chosen = self.choose(bids)
         results = {}
         for bid in chosen:
-            self._last_run[bid.name] = time.time()
+            self._last_run[bid.name] = time.monotonic()
             self._wins[bid.name] = self._wins.get(bid.name, 0) + 1
             try:
                 results[bid.name] = bid.run() if callable(bid.run) else None

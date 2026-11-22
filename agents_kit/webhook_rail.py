@@ -1,48 +1,42 @@
-"""agents_kit/webhook_rail.py — a payment webhook that cannot silently lose money.
+"""agents_kit/webhook_rail.py — a payment webhook rail with explicit adapter contracts.
 
-Every failure mode here is one I hit in production, in the order I hit it.
-
-    1. The webhook was registered against the WRONG SERVICE. It had never fired once.
-    2. The signing secret was empty, so verification returned False and every call 401'd —
-       money arrived at the processor, the app recorded nothing, the buyer got nothing.
-    3. Retries double-counted, because "did we already handle this order?" was never asked.
-    4. Test-mode orders booked as real income, so the dashboard showed revenue that did not
-       exist and every downstream gate keyed off a lie.
-
-The rail below is ~120 lines and closes all four. Copy it whole.
+The handler verifies raw bytes, parses a provider payload, deduplicates, records, then fulfils.
+Persistent atomicity and recovery are responsibilities of the caller's ledger/worker.
 """
-
 from __future__ import annotations
 
 import hashlib
 import hmac
 import json
+import math
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
 
 class AlreadyHandled(Exception):
-    """Raised by a Ledger when an event id has been seen before."""
+    """Raised by a Ledger when an event id has already been inserted."""
 
 
 class Ledger(Protocol):
-    """Your storage. Two operations, both of which must be atomic."""
+    """Persistent storage; record() must enforce event-ID uniqueness atomically."""
 
     def seen(self, event_id: str) -> bool: ...
-    def record(self, event_id: str, amount: float, currency: str, live: bool) -> None: ...
+    def record(self, event_id: str, amount: float, currency: str, live: bool) -> None:
+        """Insert under a UNIQUE event_id constraint; raise AlreadyHandled on conflict."""
+        ...
 
 
 @dataclass(frozen=True)
 class Event:
-    """A normalised payment event. `live` is the single most important field on it."""
+    """A normalized payment event."""
 
     id: str
     kind: str
     amount: float
     currency: str
     email: str
-    live: bool          # False for processor test-mode. NEVER book these as income.
-    reference: str      # your own id (venture/product/customer) from checkout metadata
+    live: bool
+    reference: str
     raw: dict
 
     @property
@@ -51,94 +45,132 @@ class Event:
 
 
 def verify(raw_body: bytes, signature: str, secret: str) -> bool:
-    """Constant-time HMAC-SHA256 check over the RAW body.
-
-    Three rules that are easy to get wrong:
-
-    * Verify the raw bytes, not a re-serialised dict. `json.loads` then `json.dumps` will
-      reorder keys and change whitespace, and the signature will never match again.
-    * An empty secret returns False. It must never mean "skip the check" — an internet-facing
-      revenue route that mints on an unverified call is a free-money endpoint for anyone who
-      finds it.
-    * Compare with `hmac.compare_digest`, not `==`, so the comparison does not leak the
-      expected digest one byte at a time.
-    """
+    """Constant-time HMAC-SHA256 check over the exact raw request bytes."""
     if not secret or not signature:
         return False
     expected = hmac.new(secret.encode("utf-8"), raw_body or b"", hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature.strip().lower())
 
 
-def parse(raw_body: bytes, event_name: str) -> Event | None:
-    """Normalise a Lemon Squeezy payload. Adapt `attributes` for another processor.
+def _parse_test_mode(value) -> bool | None:
+    """Parse an explicit provider test-mode flag; unknown/missing is not treated as live."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("1", "true", "yes", "t"):
+            return True
+        if normalized in ("0", "false", "no", "f"):
+            return False
+    return None
 
-    Returns None rather than raising: a malformed body is a 400, not a 500, and it must not
-    take down the listener that healthy retries depend on.
+
+def parse(raw_body: bytes, event_name: str) -> Event | None:
+    """Normalize a Lemon Squeezy payload; return None for malformed/ambiguous input.
+
+    Adapt the provider-specific fields and signature verification for another processor.
     """
     try:
-        payload = json.loads((raw_body or b"").decode("utf-8", "replace"))
-    except Exception:
+        payload = json.loads((raw_body or b"").decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
         return None
     if not isinstance(payload, dict):
         return None
 
-    data = payload.get("data") or {}
-    attrs = data.get("attributes") or {}
-    meta = payload.get("meta") or {}
-    custom = meta.get("custom_data") or {}
+    data = payload.get("data")
+    meta = payload.get("meta", {})
+    if meta is None:
+        meta = {}
+    if not isinstance(data, dict) or not isinstance(meta, dict):
+        return None
+    attrs = data.get("attributes", {})
+    custom = meta.get("custom_data", {})
+    if attrs is None:
+        attrs = {}
+    if custom is None:
+        custom = {}
+    if not isinstance(attrs, dict) or not isinstance(custom, dict):
+        return None
 
-    total = attrs.get("total")
+    test_mode = _parse_test_mode(attrs.get("test_mode"))
+    if test_mode is None:
+        return None
+
+    kind = str(event_name or meta.get("event_name") or "").strip()
+    payload_kind = str(meta.get("event_name") or "").strip()
+    if not kind or (event_name and payload_kind and kind != payload_kind):
+        return None
+
+    resource_id = str(data.get("id") or "").strip()
+    if not resource_id:
+        return None
+
+    # Lemon Squeezy's data.id identifies the underlying order/subscription resource,
+    # not a unique webhook delivery. Keying retries by it would discard later events
+    # (for example order_refunded after order_created) on the same resource. The
+    # provider does not include a distinct delivery UUID in its documented payload,
+    # so use a stable fingerprint of the event name and exact signed bytes.
+    event_id = hashlib.sha256(kind.encode("utf-8") + b"\0" + (raw_body or b"")).hexdigest()
+
+    # Refund events use the actual refunded amount, which can be partial, rather than
+    # the original order or invoice total.
+    is_refund = kind in ("order_refunded", "subscription_payment_refunded")
+    total = attrs.get("refunded_amount") if is_refund else attrs.get("total")
+    if total is None or isinstance(total, bool):
+        return None
     try:
-        amount = round(float(total) / 100.0, 2) if total is not None else 0.0
-    except (TypeError, ValueError):
-        amount = 0.0
+        amount = round(float(total) / 100.0, 2)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(amount) or amount < 0:
+        return None
+
+    currency_value = attrs.get("currency")
+    if (not isinstance(currency_value, str) or len(currency_value) != 3
+            or not currency_value.isascii() or not currency_value.isalpha()):
+        return None
 
     return Event(
-        id=str(data.get("id") or attrs.get("identifier") or "").strip(),
-        kind=(event_name or meta.get("event_name") or "").strip(),
+        id=event_id,
+        kind=kind,
         amount=amount,
-        currency=str(attrs.get("currency") or "USD").upper(),
+        currency=currency_value.upper(),
         email=str(attrs.get("user_email") or "").strip(),
-        # Missing test_mode is treated as LIVE. A processor always sends it; a payload without
-        # it is not a test order, and defaulting to "test" would hide real income.
-        live=not _truthy(attrs.get("test_mode")),
+        live=not test_mode,
         reference=str(custom.get("reference") or custom.get("venture_id") or "").strip(),
         raw=payload,
     )
 
 
-def _truthy(value) -> bool:
-    return str(value).strip().lower() in ("1", "true", "yes", "t")
-
-
 def handle(raw_body: bytes, signature: str, event_name: str, secret: str,
            ledger: Ledger, fulfil: Callable[[Event], None]) -> tuple[int, dict]:
-    """The whole rail. Returns (http_status, body) — wire it straight into your handler.
+    """Verify → parse → dedupe → record → fulfil.
 
-    Order matters and is not negotiable:
-      verify → parse → dedupe → record → fulfil
-
-    Fulfilment runs LAST and its failure does not roll back the recording. A sale you recorded
-    but failed to deliver is a support ticket; a sale you delivered but failed to record is a
-    hole in your books that nothing will ever surface.
+    The ledger's record() must atomically enforce event-ID uniqueness. The seen() check is
+    only an optimization. A durable outbox/recovery worker is required to recover fulfilment
+    after a crash between recording and completing the downstream action.
     """
     if not verify(raw_body, signature, secret):
         return 401, {"error": "bad signature"}
 
     event = parse(raw_body, event_name)
-    if event is None or not event.id:
+    if event is None:
         return 400, {"error": "unparseable"}
 
     if ledger.seen(event.id):
-        # 200, not 409: the processor is retrying and a non-2xx makes it retry harder.
         return 200, {"status": "duplicate", "id": event.id}
 
     amount = -event.amount if event.is_refund else event.amount
-    ledger.record(event.id, amount, event.currency, event.live)
+    try:
+        ledger.record(event.id, amount, event.currency, event.live)
+    except AlreadyHandled:
+        return 200, {"status": "duplicate", "id": event.id}
 
     try:
         fulfil(event)
-    except Exception as exc:                                  # noqa: BLE001 — reported, not raised
-        return 200, {"status": "recorded", "fulfilment": f"pending: {exc}"[:200]}
+    except Exception as exc:  # noqa: BLE001 — reported as pending; caller must recover durably
+        return 200, {"status": "recorded", "fulfilment": f"pending: {str(exc)[:200]}"}
 
     return 200, {"status": "ok", "recorded": amount, "live": event.live}

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use Agents Kit in your work, please cite this software."
+title: "Agents Kit"
+version: "1.0.1"
+date-released: "2026-09-05"
+type: software
+authors:
+  - family-names: Mribai
+    given-names: Ahmed
+repository-code: "https://github.com/ahmedmribai/agents-kit"
+url: "https://github.com/ahmedmribai/agents-kit"
+license: MIT

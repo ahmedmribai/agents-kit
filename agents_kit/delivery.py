@@ -1,30 +1,14 @@
-"""agents_kit/delivery.py — deliver what was paid for, exactly once, or tell somebody.
+"""agents_kit/delivery.py — deliver verified HTTPS artefacts and expose failure states.
 
-The three ways I have actually failed a paying customer:
-
-  1. **Delivered nothing.** Revenue was recorded, no delivery step existed. The buyer paid and
-     got silence. Nothing in the system knew anything was wrong, because the sale looked fine.
-
-  2. **Delivered twice.** The processor retried the webhook and the buyer got two emails.
-     Harmless here; if the deliverable had been a licence key or a credit top-up, it would not
-     have been.
-
-  3. **Delivered a link back to the sales page they had just bought from.** This one is my
-     favourite, because it passed every test. The code collected "the venture's best URL", and
-     the venture's best URL was its own landing page. To the buyer it reads exactly like a
-     scam. It shipped because "a link was produced" was the success condition.
-
-The rules encoded below:
-  * Idempotent per (order, product) — a retry is a no-op, not a second delivery.
-  * A deliverable must be *verified* to be a deliverable, not merely to exist.
-  * NEVER fail silently. If delivery cannot happen, record it as PENDING and alert a human.
-    A paid customer must never be left with nothing and no trace.
+This helper provides sequential idempotency. A production Store and downstream sender must
+supply durable, atomic coordination for concurrent workers and ambiguous network outcomes.
 """
-
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from typing import Callable, Iterable, Protocol
+from urllib.parse import unquote, urlsplit
 
 
 class Store(Protocol):
@@ -40,45 +24,74 @@ class Result:
     reason: str = ""
 
 
+def _url_identity(value: str) -> tuple[str, str] | None:
+    """Return a comparable host/path key for an HTTP(S) URL, or None if malformed."""
+    try:
+        parts = urlsplit(value.strip())
+        scheme = parts.scheme.lower()
+        host = (parts.hostname or "").lower().rstrip(".")
+        if scheme not in ("http", "https") or not host:
+            return None
+        if parts.username is not None or parts.password is not None:
+            return None
+        port = parts.port
+        if (scheme == "https" and port not in (None, 443)) or (scheme == "http" and port not in (None, 80)):
+            return None
+    except (ValueError, TypeError):
+        return None
+
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".test", ".invalid")):
+        return None
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        return None
+
+    path = unquote(parts.path or "/")
+    if path.endswith("/index.html"):
+        path = path[:-len("index.html")]
+    path = path.rstrip("/") or "/"
+    return host, path
+
+
 def usable_links(candidates: Iterable[str], sales_pages: Iterable[str]) -> list[str]:
-    """Filter candidate URLs down to ones a buyer can actually use.
+    """Keep unique public HTTPS links, excluding sales pages and their index aliases.
 
-    Rejects, in order of how badly each one burned me:
-      * the sales page itself (and its directory/index twin)
-      * `file://` and localhost paths, which resolve only on the machine that made them —
-        these appear when a publisher silently falls back to a local "dry" mode
-      * empties and duplicates, order preserved
+    This validates URL shape, not the safety or availability of the destination's content.
     """
-    blocked = set()
-    for page in sales_pages:
-        p = (page or "").strip()
-        if not p:
-            continue
-        blocked.add(p)
-        if p.endswith("/index.html"):
-            blocked.add(p[: -len("index.html")])
-        elif p.endswith("/"):
-            blocked.add(p + "index.html")
+    blocked = {
+        identity for page in sales_pages
+        if page and (identity := _url_identity(page)) is not None
+    }
 
-    out, seen = [], set()
-    for c in candidates:
-        u = (c or "").strip()
-        if not u or u in blocked or u in seen:
+    out: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        url = (candidate or "").strip()
+        if not url or url in seen:
             continue
-        if u.lower().startswith(("file://", "http://127.0.0.1", "http://localhost")):
+        try:
+            parts = urlsplit(url)
+        except ValueError:
             continue
-        seen.add(u)
-        out.append(u)
+        if parts.scheme.lower() != "https":
+            continue
+        identity = _url_identity(url)
+        if identity is None or identity in blocked:
+            continue
+        seen.add(url)
+        out.append(url)
     return out
 
 
 def deliver(order_ref: str, to: str, candidates: Iterable[str], sales_pages: Iterable[str],
             store: Store, send: Callable[[str, list[str]], bool]) -> Result:
-    """Deliver once. Never raises.
+    """Attempt delivery once in this process and return an explicit outcome.
 
-    Note what happens when there is nothing good to send: it does NOT fall back to "send the
-    least-bad link". It records PENDING so a human finishes the job. An honest pending beats a
-    delivery the buyer will read as a scam — and unlike the scam, somebody finds out about it.
+    Store operations are allowed to raise: persistence failures must not be disguised as a
+    successful or durable pending result. The delivered() check is not a distributed lock.
     """
     if store.delivered(order_ref):
         return Result("duplicate", [], "already delivered")
@@ -89,12 +102,12 @@ def deliver(order_ref: str, to: str, candidates: Iterable[str], sales_pages: Ite
 
     links = usable_links(candidates, sales_pages)
     if not links:
-        store.mark_pending(order_ref, to, "no usable deliverable")
-        return Result("pending", [], "no usable deliverable")
+        store.mark_pending(order_ref, to, "no usable HTTPS deliverable")
+        return Result("pending", [], "no usable HTTPS deliverable")
 
     try:
         ok = send(to, links)
-    except Exception as exc:                                  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         store.mark_pending(order_ref, to, f"send raised: {str(exc)[:120]}")
         return Result("pending", links, "send raised")
 
@@ -102,6 +115,7 @@ def deliver(order_ref: str, to: str, candidates: Iterable[str], sales_pages: Ite
         store.mark_pending(order_ref, to, "send rejected")
         return Result("pending", links, "send rejected")
 
-    # Mark only AFTER a confirmed send, so a failure retries instead of being sealed as done.
+    # Mark only after confirmed send. Provider idempotency is still needed for ambiguous
+    # timeouts/crashes between the provider accepting the send and this write succeeding.
     store.mark_delivered(order_ref, to, links)
     return Result("delivered", links)

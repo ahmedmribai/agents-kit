@@ -1,4 +1,13 @@
-# The Agents Kit
+# Agents Kit — Python Reliability Primitives for Autonomous Agents
+
+**Dependency-free Python building blocks for reliable agent workflows.**
+
+[![CI](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ahmedmribai/agents-kit/actions/workflows/codeql.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/codeql.yml)
+[![PyPI version](https://img.shields.io/pypi/v/agents-toolkit)](https://pypi.org/project/agents-toolkit/)
+[![Python versions](https://img.shields.io/pypi/pyversions/agents-toolkit)](https://pypi.org/project/agents-toolkit/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 
 **Five things an autonomous agent gets wrong silently, and the code that stops each one.**
 
@@ -20,14 +29,14 @@ pip install agents-toolkit
 The distribution is `agents-toolkit`; the import is `agents_kit`.
 
 ```
-agents_kit.webhook_rail   a payment rail that cannot silently lose money
-agents_kit.gates          gates that fail OPEN on "couldn't measure", CLOSED on "measured bad"
+agents_kit.webhook_rail   signed webhook verification, retry deduplication, explicit ledger contracts
+agents_kit.gates          quality gates with explicit UNKNOWN allow/block policy
 agents_kit.staleness      catch loops that run forever and produce nothing
-agents_kit.attention      budget arbitration that proves nothing starves
-agents_kit.delivery       idempotent fulfilment that never drops a paid order
+agents_kit.attention      budget arbitration with starvation visibility
+agents_kit.delivery       validated HTTPS links and explicit fulfilment outcomes
 ```
 
-29 tests cover all five incidents:
+56 tests cover the five reliability modules, optional adapter decisions, and security edge cases:
 
 ```bash
 pip install pytest && python -m pytest tests/ -q
@@ -57,7 +66,7 @@ Four independent breaks, each individually silent, stacked:
 Any monitoring you would plausibly have — endpoint uptime, error rate, latency — was green
 throughout. The endpoint was *up*. Nothing ever asked it to do anything.
 
-**The fix is an order of operations**, in `kit/webhook_rail.py`:
+**The fix is an order of operations**, in `agents_kit/webhook_rail.py`:
 
 ```
 verify -> parse -> dedupe -> record -> fulfil
@@ -131,3 +140,57 @@ wrong theory ruled out first, and the one measurement that finally showed what w
 
 Code (`agents_kit/`, `tests/`): **MIT** — copy it, ship it, sell what you build with it.
 The written post-mortem is sold separately and is not MIT; see `LICENSE-POSTMORTEM.txt`.
+
+
+## Try the examples
+
+The repository includes a runnable walkthrough of the public APIs:
+
+```bash
+python examples/basic_usage.py
+```
+
+The examples use in-memory adapters and synthetic data. They are for learning and local
+experimentation, not production persistence or payment processing.
+
+## Production integration notes
+
+These modules are deliberately small primitives. They do not replace durable storage,
+database transactions, provider-specific webhook verification, distributed coordination,
+or end-to-end monitoring. Before using them in a live system, read
+[Production integration boundaries](docs/production-integration.md). In particular:
+
+- A webhook ledger must enforce event uniqueness with an atomic database constraint, and
+  fulfilment needs a durable recovery path such as an outbox.
+- `Verdict.UNKNOWN` is allowed by the quality-gate helper; security-sensitive callers
+  must decide whether that policy is appropriate.
+- The included staleness monitor is in-memory, and the attention arbiter does not guarantee
+  strict fairness.
+- Delivery idempotency depends on the caller's store and downstream provider behavior.
+
+
+## Community and support
+
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+- [Citing Agents Kit](CITATION.cff)
+- [Changelog](CHANGELOG.md)
+
+Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md), [LangChain / LangGraph](docs/integrations/langchain.md), and [CrewAI](docs/integrations/crewai.md).
+
+Bug reports and focused feature requests are welcome through the repository's issue templates.
+
+
+## First adopters wanted
+
+Agents Kit is looking for its first external developers to try the framework adapters in
+small, real workflows and report what works, what fails, and what should change.
+
+- [Try the integrations](docs/integrations/)
+- [Help validate the first integrations](https://github.com/ahmedmribai/agents-kit/issues/3)
+- [Report a reproducible bug](https://github.com/ahmedmribai/agents-kit/issues/new?template=bug_report.yml)
+
+A minimal reproduction with package/framework versions is more useful than a star. Please
+do not share secrets, customer data, or private production payloads.

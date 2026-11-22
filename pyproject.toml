@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "agents-toolkit"
 version = "1.0.1"
-description = "Five things an autonomous agent gets wrong silently, and the code that stops each one. Dependency-free stdlib."
+description = "Dependency-free Python reliability primitives for autonomous-agent workflows: webhook safety, quality gates, staleness detection, budget arbitration, and delivery safeguards."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
@@ -13,6 +13,7 @@ authors = [{ name = "Ahmed Mribai", email = "hello@get-agents-kit.com" }]
 keywords = [
     "agents", "llm", "autonomous", "webhook", "idempotency",
     "reliability", "observability", "fulfilment", "quality-gates",
+    "agent-reliability", "agent-observability", "workflow-reliability", "guardrails",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -25,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Quality Assurance",
 ]
