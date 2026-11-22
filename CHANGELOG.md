@@ -26,3 +26,6 @@ All notable project changes are documented here.
 - Add a Python 3.9–3.14 test matrix, example compile checks, and wheel/source-distribution validation.
 - Add CodeQL analysis, weekly Dependabot update proposals, and an optional CI smoke test against the current OpenAI Agents SDK.
 - Cancel superseded CI and CodeQL runs on the same ref.
+
+- Add optional CrewAI task-guardrail and LangChain/LangGraph after-model middleware adapters with framework-specific integration guides.
+- Add framework integration smoke testing for LangChain to CI.
