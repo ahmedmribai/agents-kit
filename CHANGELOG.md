@@ -24,5 +24,5 @@ All notable project changes are documented here.
 
 ### CI and maintenance
 - Add a Python 3.9–3.14 test matrix, example compile checks, and wheel/source-distribution validation.
-- Add CodeQL analysis and weekly Dependabot update proposals.
+- Add CodeQL analysis, weekly Dependabot update proposals, and an optional CI smoke test against the current OpenAI Agents SDK.
 - Cancel superseded CI and CodeQL runs on the same ref.
