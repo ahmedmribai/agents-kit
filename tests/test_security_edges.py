@@ -73,6 +73,31 @@ def test_webhook_accepts_explicit_test_mode_and_marks_event_not_live():
     assert event.live is False
 
 
+
+def test_webhook_rejects_missing_or_invalid_currency_codes():
+    for currency in (None, "", "US", "USDD", "USD!"):
+        payload = _payload()
+        if currency is None:
+            del payload["data"]["attributes"]["currency"]
+        else:
+            payload["data"]["attributes"]["currency"] = currency
+        raw, _ = _signed(payload)
+        assert webhook_rail.parse(raw, "order_created") is None
+
+
+def test_webhook_rejects_negative_payment_and_refund_amounts():
+    payload = _payload()
+    payload["data"]["attributes"]["total"] = -1
+    raw, _ = _signed(payload)
+    assert webhook_rail.parse(raw, "order_created") is None
+
+    payload = _payload()
+    payload["meta"]["event_name"] = "order_refunded"
+    payload["data"]["attributes"]["refunded_amount"] = -1
+    raw, _ = _signed(payload)
+    assert webhook_rail.parse(raw, "order_refunded") is None
+
+
 def test_delivery_rejects_non_https_local_and_credential_urls():
     candidates = [
         "https://cdn.example.com/guide.pdf",
