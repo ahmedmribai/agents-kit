@@ -28,18 +28,19 @@ def _url_identity(value: str) -> tuple[str, str] | None:
     """Return a comparable host/path key for an HTTP(S) URL, or None if malformed."""
     try:
         parts = urlsplit(value.strip())
+        scheme = parts.scheme.lower()
         host = (parts.hostname or "").lower().rstrip(".")
-        if parts.scheme.lower() not in ("http", "https") or not host:
+        if scheme not in ("http", "https") or not host:
             return None
         if parts.username is not None or parts.password is not None:
             return None
-        # Avoid alternate ports and ambiguous local destinations in emailed links.
-        if parts.port not in (None, 80, 443):
+        port = parts.port
+        if (scheme == "https" and port not in (None, 443)) or (scheme == "http" and port not in (None, 80)):
             return None
     except (ValueError, TypeError):
         return None
 
-    if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".test", ".invalid")):
         return None
     try:
         address = ipaddress.ip_address(host)
