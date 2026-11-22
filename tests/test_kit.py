@@ -12,6 +12,8 @@ import time
 
 from agents_kit import attention, delivery, gates, staleness, webhook_rail
 from agents_kit.integrations.openai_agents import evaluate_output
+from agents_kit.integrations.crewai import build_task_guardrail
+from agents_kit.integrations.langchain import _message_text
 
 SECRET = "test-signing-secret"
 
@@ -282,6 +284,32 @@ def test_gate_rejects_invalid_threshold_configuration():
             pass
         else:
             raise AssertionError("invalid threshold was accepted")
+
+
+
+def test_crewai_guardrail_accepts_valid_output():
+    guardrail = build_task_guardrail([lambda output: bool(output.raw.strip())])
+    accepted, value = guardrail(type("TaskOutput", (), {"raw": "A useful result"})())
+    assert accepted is True
+    assert value.raw == "A useful result"
+
+
+def test_crewai_guardrail_returns_feedback_for_failed_or_unknown_checks():
+    rejected, feedback = build_task_guardrail([lambda output: False])("bad")
+    assert rejected is False
+    assert "failed" in feedback
+
+    def unavailable(output):
+        raise TimeoutError("validator unavailable")
+
+    rejected, feedback = build_task_guardrail([unavailable])("uncertain")
+    assert rejected is False
+    assert "could not be completed" in feedback
+
+
+def test_langchain_adapter_extracts_text_from_string_and_multimodal_content():
+    assert _message_text(type("Message", (), {"content": "hello"})()) == "hello"
+    assert _message_text(type("Message", (), {"content": [{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}]})()) == "hello world"
 
 
 # -- staleness ----------------------------------------------------------------
