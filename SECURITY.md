@@ -13,7 +13,9 @@ Please do not disclose exploitable vulnerabilities in a public GitHub issue.
 If GitHub's private vulnerability reporting is enabled for this repository, use the
 **Report a vulnerability** option on the repository's Security tab. Otherwise, contact
 the maintainer through the contact method listed on the maintainer's public GitHub profile
-and ask for a private reporting channel before sending technical details.
+and ask for a private reporting channel before sending technical details. You may also email
+**hello@get-agents-kit.com** with the subject **[Security] Agents Kit**; this address is
+published in the package metadata. Do not attach secrets or live customer data.
 
 Do not include real credentials, payment details, customer information, or other sensitive
 production data. Use synthetic examples.
