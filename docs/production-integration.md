@@ -35,10 +35,11 @@ provider-specific behavior. Read this page before wiring a module into a live sy
 
 ## Quality gates
 
-`Verdict.UNKNOWN` is allowed by default in this module. That is a deliberate availability
-policy for workflows where a failed judge should not masquerade as a negative judgement.
-It is not universally safe. For authorization, security checks, payments, compliance, or
-irreversible actions, explicitly enforce a fail-closed policy in the calling application.
+`Verdict.UNKNOWN` is allowed by default for backwards compatibility, but callers can choose
+`unknown_policy="block"` to fail closed when judges cannot produce a result. Use that policy
+for authorization, security checks, payments, compliance, or irreversible actions. The
+result exposes the selected policy through `GateResult.unknown_policy` and the final decision
+through `GateResult.allowed`.
 
 ## Staleness monitor
 
