@@ -273,6 +273,17 @@ def test_openai_agents_adapter_fails_closed_without_checks():
     assert result.allowed is False
 
 
+
+def test_gate_rejects_invalid_threshold_configuration():
+    for threshold in (-0.1, 1.1, float("nan"), True):
+        try:
+            gates.evaluate([_judge(ok=True)], threshold=threshold)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid threshold was accepted")
+
+
 # -- staleness ----------------------------------------------------------------
 
 def test_zero_output_streak_is_detected():
