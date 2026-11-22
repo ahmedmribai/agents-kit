@@ -176,4 +176,6 @@ or end-to-end monitoring. Before using them in a live system, read
 - [Citing Agents Kit](CITATION.cff)
 - [Changelog](CHANGELOG.md)
 
+Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md).
+
 Bug reports and focused feature requests are welcome through the repository's issue templates.
