@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agents-toolkit"
-version = "1.0.2"
+version = "1.1.0"
 description = "Dependency-free Python reliability primitives for autonomous-agent workflows: webhook safety, quality gates, staleness detection, budget arbitration, and delivery safeguards."
 readme = "README.md"
 requires-python = ">=3.9"
