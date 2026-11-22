@@ -213,6 +213,32 @@ def test_measure_only_mode_never_blocks():
     assert r.verdict is gates.Verdict.PASS and r.score == 0.0
 
 
+
+def test_gate_unknown_can_be_configured_to_fail_closed():
+    result = gates.evaluate([_judge(error=True)] * 2, unknown_policy="block")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
+def test_measure_only_mode_never_blocks_even_when_every_judge_fails():
+    result = gates.evaluate([_judge(error=True)], enabled=False, unknown_policy="block")
+    assert result.verdict is gates.Verdict.PASS
+    assert result.allowed is True
+
+
+def test_invalid_judge_result_is_recorded_as_measurement_error():
+    result = gates.evaluate([lambda: None], unknown_policy="block")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.errors == 1
+    assert result.allowed is False
+
+
+def test_invalid_unknown_policy_fails_closed():
+    result = gates.evaluate([_judge(error=True)], unknown_policy="permit")
+    assert result.verdict is gates.Verdict.UNKNOWN
+    assert result.allowed is False
+
+
 # -- staleness ----------------------------------------------------------------
 
 def test_zero_output_streak_is_detected():
