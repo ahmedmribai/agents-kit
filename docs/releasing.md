@@ -1,6 +1,6 @@
 # Releasing Agents Kit
 
-This project uses semantic versioning. The current release candidate is **1.0.2**, a patch
+This project uses semantic versioning. The current release candidate is **1.1.0**, a patch
 release for correctness, validation, documentation, and optional framework integrations.
 The release process must not publish automatically from a branch push.
 
@@ -15,7 +15,7 @@ The release process must not publish automatically from a branch push.
 4. Confirm CI, CodeQL, tests, example execution, wheel/sdist build, and `twine check` pass.
 5. Review the built distributions and verify that the separate post-mortem text is not
    included in either artifact.
-6. Create a GitHub release tagged `v1.0.2` from the merged release commit. Do not publish
+6. Create a GitHub release tagged `v1.1.0` from the merged release commit. Do not publish
    the release until the PyPI Trusted Publisher and environment protections below are ready.
 
 ## Configure PyPI Trusted Publishing once
