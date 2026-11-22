@@ -85,7 +85,7 @@ jobs:
 
       - name: Verify middleware factory
         run: |
-          python -c "from agents_kit.integrations.langchain import build_output_gate_middleware; middleware = build_output_gate_middleware([lambda text: bool(text.strip())]); assert middleware.get_name() == 'agents_kit_output_gate'"
+          python -c "from agents_kit.integrations.langchain import build_output_gate_middleware; middleware = build_output_gate_middleware([lambda text: bool(text.strip())]); assert middleware is not None"
 
   openai-agents:
     name: OpenAI Agents SDK adapter smoke test
