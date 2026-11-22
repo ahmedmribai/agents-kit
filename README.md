@@ -1,6 +1,7 @@
 # Agents Kit
 
 [![CI](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ahmedmribai/agents-kit/actions/workflows/codeql.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/codeql.yml)
 [![PyPI version](https://img.shields.io/pypi/v/agents-toolkit)](https://pypi.org/project/agents-toolkit/)
 [![Python versions](https://img.shields.io/pypi/pyversions/agents-toolkit)](https://pypi.org/project/agents-toolkit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -173,5 +174,6 @@ or end-to-end monitoring. Before using them in a live system, read
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Security policy](SECURITY.md)
 - [Citing Agents Kit](CITATION.cff)
+- [Changelog](CHANGELOG.md)
 
 Bug reports and focused feature requests are welcome through the repository's issue templates.
