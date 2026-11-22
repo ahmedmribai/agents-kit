@@ -15,8 +15,9 @@ disabled them was a tunable nobody thought of as a switch.
 
 Two defences, both here:
   * `starving()` names any bid that has never won. Alarm on it.
-  * urgency rises the longer a bid goes unchosen, so an expensive bid eventually outbids
-    cheap ones instead of losing on ratio forever.
+  * urgency rises the longer a bid goes unchosen, which can improve its ranking. This is a
+    heuristic, not a fairness guarantee: an unaffordable bid or one that never clears the
+    score threshold can still starve. Use feasible() and starving() to expose those cases.
 """
 
 from __future__ import annotations
