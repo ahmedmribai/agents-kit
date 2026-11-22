@@ -24,3 +24,5 @@ All notable project changes are documented here.
 
 - Add a dependency-optional OpenAI Agents SDK output-guardrail integration example and guide.
 - Compile all package and example modules in CI, including optional integration examples.
+
+- Add Python 3.14 to the supported test matrix and package classifiers; clarify PyPI discovery metadata.
