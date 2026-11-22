@@ -98,17 +98,33 @@ def parse(raw_body: bytes, event_name: str) -> Event | None:
     if test_mode is None:
         return None
 
-    total = attrs.get("total")
+    kind = str(event_name or meta.get("event_name") or "").strip()
+    payload_kind = str(meta.get("event_name") or "").strip()
+    if not kind or (event_name and payload_kind and kind != payload_kind):
+        return None
+
+    resource_id = str(data.get("id") or "").strip()
+    if not resource_id:
+        return None
+
+    # Lemon Squeezy's data.id identifies the underlying order/subscription resource,
+    # not a unique webhook delivery. Keying retries by it would discard later events
+    # (for example order_refunded after order_created) on the same resource. The
+    # provider does not include a distinct delivery UUID in its documented payload,
+    # so use a stable fingerprint of the event name and exact signed bytes.
+    event_id = hashlib.sha256(kind.encode("utf-8") + b"\\0" + (raw_body or b"")).hexdigest()
+
+    # Refund events use the actual refunded amount, which can be partial, rather than
+    # the original order or invoice total.
+    is_refund = kind in ("order_refunded", "subscription_payment_refunded")
+    total = attrs.get("refunded_amount") if is_refund else attrs.get("total")
+    if total is None or isinstance(total, bool):
+        return None
     try:
-        amount = round(float(total) / 100.0, 2) if total is not None else 0.0
+        amount = round(float(total) / 100.0, 2)
     except (TypeError, ValueError, OverflowError):
         return None
     if not math.isfinite(amount):
-        return None
-
-    event_id = str(data.get("id") or attrs.get("identifier") or "").strip()
-    kind = str(event_name or meta.get("event_name") or "").strip()
-    if not event_id or not kind:
         return None
 
     return Event(
