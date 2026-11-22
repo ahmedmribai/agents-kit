@@ -1,4 +1,6 @@
-# Agents Kit
+# Agents Kit — Python Reliability Primitives for Autonomous Agents
+
+**Dependency-free Python building blocks for reliable agent workflows.**
 
 [![CI](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ahmedmribai/agents-kit/actions/workflows/codeql.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/codeql.yml)
