@@ -20,9 +20,10 @@ provider-specific behavior. Read this page before wiring a module into a live sy
 - When both the `X-Event-Name` header and `meta.event_name` are present, they must agree.
 - Refund events use `refunded_amount`, not the original `total`, so partial refunds are not
   incorrectly booked as full refunds. The parser rejects refund payloads without that field.
-- The parser requires an explicit, recognized `test_mode` flag. Unknown or missing values
-  are rejected rather than silently classified as live revenue. Adapt this contract to the
-  exact provider payload before integration.
+- The parser requires an explicit, recognized `test_mode` flag and a three-letter ASCII
+  currency code. Unknown or missing values are rejected rather than silently classified as
+  live revenue or defaulted to USD. Negative and non-finite amounts are rejected. Adapt this
+  contract to the exact provider payload before integration.
 - Persist enough state to recover fulfilment after a process crash. Recording a payment and
   sending a fulfilment email are not one atomic operation. Use a transactional outbox or a
   durable pending-fulfilment worker; do not assume a webhook retry will recover a crash after
