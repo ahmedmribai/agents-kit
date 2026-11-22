@@ -7,10 +7,19 @@ provider-specific behavior. Read this page before wiring a module into a live sy
 ## Webhook rail
 
 - Verify the exact raw request bytes using the payment provider's documented signature format.
-- Use a persistent ledger with a database-level UNIQUE constraint on the provider event ID.
+- Use a persistent ledger with a database-level UNIQUE constraint on the event deduplication key.
   The adapter's `record()` operation must atomically insert the event and raise
   `AlreadyHandled` when that unique constraint rejects a duplicate. The earlier `seen()`
   call is only an optimization and is not a concurrency guarantee.
+- Lemon Squeezy's documented `data.id` is the order/subscription resource ID, not a unique
+  webhook-delivery ID. Using it as the ledger key would incorrectly discard later event types
+  for the same resource (for example, an order refund after order creation). This adapter uses
+  a SHA-256 fingerprint of the event name plus the exact signed request bytes. It deduplicates
+  byte-identical retries; it cannot distinguish two legitimate, byte-identical events. For a
+  provider that supplies a stable delivery UUID, prefer that UUID as the deduplication key.
+- When both the `X-Event-Name` header and `meta.event_name` are present, they must agree.
+- Refund events use `refunded_amount`, not the original `total`, so partial refunds are not
+  incorrectly booked as full refunds. The parser rejects refund payloads without that field.
 - The parser requires an explicit, recognized `test_mode` flag. Unknown or missing values
   are rejected rather than silently classified as live revenue. Adapt this contract to the
   exact provider payload before integration.
