@@ -181,3 +181,16 @@ or end-to-end monitoring. Before using them in a live system, read
 Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md), [LangChain / LangGraph](docs/integrations/langchain.md), and [CrewAI](docs/integrations/crewai.md).
 
 Bug reports and focused feature requests are welcome through the repository's issue templates.
+
+
+## First adopters wanted
+
+Agents Kit is looking for its first external developers to try the framework adapters in
+small, real workflows and report what works, what fails, and what should change.
+
+- [Try the integrations](docs/integrations/)
+- [Help validate the first integrations](https://github.com/ahmedmribai/agents-kit/issues/3)
+- [Report a reproducible bug](https://github.com/ahmedmribai/agents-kit/issues/new?template=bug_report.yml)
+
+A minimal reproduction with package/framework versions is more useful than a star. Please
+do not share secrets, customer data, or private production payloads.
