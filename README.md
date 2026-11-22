@@ -164,3 +164,14 @@ or end-to-end monitoring. Before using them in a live system, read
 - The included staleness monitor is in-memory, and the attention arbiter does not guarantee
   strict fairness.
 - Delivery idempotency depends on the caller's store and downstream provider behavior.
+
+
+## Community and support
+
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+- [Citing Agents Kit](CITATION.cff)
+
+Bug reports and focused feature requests are welcome through the repository's issue templates.
