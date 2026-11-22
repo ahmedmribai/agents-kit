@@ -87,5 +87,8 @@ def evaluate(judges: Sequence[Callable[[], Judgement]], threshold: float = 0.5,
     if not enabled:
         return GateResult(Verdict.PASS, score, threshold, judged, errors,
                           reasons + ["gate in measure-only mode"], policy)
+    if errors:
+        # A partial score is useful telemetry, but it is not complete evidence.
+        return GateResult(Verdict.UNKNOWN, score, threshold, judged, errors, reasons, policy)
     verdict = Verdict.PASS if score >= threshold else Verdict.BLOCK
     return GateResult(verdict, score, threshold, judged, errors, reasons, policy)
