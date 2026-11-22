@@ -34,6 +34,9 @@ class FakeLedger:
         return event_id in self.rows
 
     def record(self, event_id, amount, currency, live):
+        # Simulate a database UNIQUE constraint: the insert is atomic.
+        if event_id in self.rows:
+            raise webhook_rail.AlreadyHandled(event_id)
         self.rows[event_id] = {"amount": amount, "currency": currency, "live": live}
 
 
@@ -102,6 +105,21 @@ def test_malformed_body_is_400_not_a_crash():
     status, _ = webhook_rail.handle(b"not json", sig, "order_created", SECRET,
                                     FakeLedger(), lambda e: None)
     assert status == 400
+
+
+def test_concurrent_duplicate_is_rejected_by_atomic_ledger_insert():
+    """Two requests can both pass seen(); the unique insert must still deduplicate."""
+    class RacingLedger(FakeLedger):
+        def seen(self, event_id):
+            return False  # Simulate both requests checking before either inserts.
+
+    raw, sig = _signed(_order())
+    ledger = RacingLedger()
+    first, _ = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
+    second, body = webhook_rail.handle(raw, sig, "order_created", SECRET, ledger, lambda e: None)
+    assert first == second == 200
+    assert body["status"] == "duplicate"
+    assert len(ledger.rows) == 1
 
 
 # -- gates --------------------------------------------------------------------
