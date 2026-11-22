@@ -15,3 +15,5 @@ All notable project changes are documented here.
 
 - Deduplicate Lemon Squeezy retries using an event/body fingerprint rather than the resource ID, and preserve distinct events for the same order or subscription.
 - Account for partial refunds using the provider's refunded amount and reject mismatched event-name headers.
+
+- Add an explicit fail-closed option for quality-gate UNKNOWN results and handle invalid judge return values without crashing.
