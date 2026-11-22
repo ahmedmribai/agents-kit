@@ -33,7 +33,7 @@ agents_kit.attention      budget arbitration that proves nothing starves
 agents_kit.delivery       idempotent fulfilment that never drops a paid order
 ```
 
-29 tests cover all five incidents:
+30 tests cover all five incidents:
 
 ```bash
 pip install pytest && python -m pytest tests/ -q
