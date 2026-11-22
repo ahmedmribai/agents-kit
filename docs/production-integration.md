@@ -11,10 +11,13 @@ provider-specific behavior. Read this page before wiring a module into a live sy
   The adapter's `record()` operation must atomically insert the event and raise
   `AlreadyHandled` when that unique constraint rejects a duplicate. The earlier `seen()`
   call is only an optimization and is not a concurrency guarantee.
-- Persist enough state to recover fulfilment after a process crash. In particular, recording
-  a payment and sending a fulfilment email are not one atomic operation. Use a transactional
-  outbox or a durable pending-fulfilment worker; do not assume a webhook retry will recover
-  a crash after the ledger write.
+- The parser requires an explicit, recognized `test_mode` flag. Unknown or missing values
+  are rejected rather than silently classified as live revenue. Adapt this contract to the
+  exact provider payload before integration.
+- Persist enough state to recover fulfilment after a process crash. Recording a payment and
+  sending a fulfilment email are not one atomic operation. Use a transactional outbox or a
+  durable pending-fulfilment worker; do not assume a webhook retry will recover a crash after
+  the ledger write.
 - Confirm the provider's event types, refund semantics, currency units, and test/live flags.
   Adapt `parse()` for your provider and reject event types your application does not handle.
 - Use integer minor units or a decimal money type in your own ledger when exact monetary
@@ -44,11 +47,17 @@ policy if every task must receive a guaranteed share of compute.
 
 ## Delivery
 
-The delivery helper relies on the caller's store and send adapter. Make the store's
-idempotency operations atomic and durable. A crash between sending and marking delivered
-can still cause a duplicate send on retry; use a provider idempotency key or an outbox when
-the downstream service supports it. Validate destination URLs and recipients according to
-your application's threat model before sending.
+The helper accepts only public HTTPS URLs, rejects URL credentials and non-public IP
+addresses, and filters the configured sales page and its `index.html`/trailing-slash alias.
+This is URL-shape validation, not a reputation check or proof that the destination content is
+safe. Validate content and ownership in your application before sending links to customers.
+
+The current API's `delivered()` check is not an atomic distributed claim. Concurrent workers
+can both send before either records delivery. Use a database-backed claim/lease or serialize
+attempts per order. A timeout or process crash after a provider accepts a message but before
+`mark_delivered()` can also cause a duplicate on retry; use a downstream idempotency key or
+transactional outbox where supported. Storage errors intentionally propagate instead of being
+reported as a durable pending result.
 
 ## General rule
 
