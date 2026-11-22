@@ -177,6 +177,7 @@ or end-to-end monitoring. Before using them in a live system, read
 - [Security policy](SECURITY.md)
 - [Citing Agents Kit](CITATION.cff)
 - [Changelog](CHANGELOG.md)
+- [Release process](docs/releasing.md)
 
 Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md), [LangChain / LangGraph](docs/integrations/langchain.md), and [CrewAI](docs/integrations/crewai.md).
 

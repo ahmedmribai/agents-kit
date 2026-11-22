@@ -5,11 +5,11 @@ Every module here was extracted from a running system after the corresponding fa
 already cost me weeks. Each one is standalone: copy the file, it has no dependencies beyond
 the standard library.
 
-    webhook_rail  a payment rail that cannot silently lose money
-    gates         quality gates that fail OPEN on "couldn't measure", CLOSED on "measured bad"
-    staleness     catch loops that run forever and produce nothing
-    attention     budget arbitration that proves nothing starves
-    delivery      idempotent fulfilment that never drops a paid order
+    webhook_rail  signed webhook verification, deduplication, and ledger contracts
+    gates         quality gates with explicit UNKNOWN allow/block policy
+    staleness     detect repeated work that produces no new output
+    attention     budget arbitration with starvation visibility
+    delivery      idempotent fulfilment with explicit pending outcomes
 """
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
