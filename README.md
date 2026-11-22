@@ -28,7 +28,7 @@ The distribution is `agents-toolkit`; the import is `agents_kit`.
 
 ```
 agents_kit.webhook_rail   a payment rail that cannot silently lose money
-agents_kit.gates          gates that fail OPEN on "couldn't measure", CLOSED on "measured bad"
+agents_kit.gates          quality gates with explicit UNKNOWN allow/block policy "couldn't measure", CLOSED on "measured bad"
 agents_kit.staleness      catch loops that run forever and produce nothing
 agents_kit.attention      budget arbitration that proves nothing starves
 agents_kit.delivery       idempotent fulfilment that never drops a paid order
