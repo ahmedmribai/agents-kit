@@ -80,11 +80,17 @@ def parse(raw_body: bytes, event_name: str) -> Event | None:
         return None
 
     data = payload.get("data")
-    meta = payload.get("meta") or {}
+    meta = payload.get("meta", {})
+    if meta is None:
+        meta = {}
     if not isinstance(data, dict) or not isinstance(meta, dict):
         return None
-    attrs = data.get("attributes") or {}
-    custom = meta.get("custom_data") or {}
+    attrs = data.get("attributes", {})
+    custom = meta.get("custom_data", {})
+    if attrs is None:
+        attrs = {}
+    if custom is None:
+        custom = {}
     if not isinstance(attrs, dict) or not isinstance(custom, dict):
         return None
 
