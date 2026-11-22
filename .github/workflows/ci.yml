@@ -40,11 +40,13 @@ jobs:
       - name: Verify package and citation version consistency
         run: |
           python - <<'PY'
-          import tomllib
           import agents_kit
 
-          with open("pyproject.toml", "rb") as f:
-              package_version = tomllib.load(f)["project"]["version"]
+          with open("pyproject.toml", encoding="utf-8") as f:
+              package_version = next(
+                  line.split("=", 1)[1].strip().strip('"')
+                  for line in f if line.strip().startswith("version =")
+              )
           with open("CITATION.cff", encoding="utf-8") as f:
               citation_version = next(
                   line.split(":", 1)[1].strip().strip('"')
