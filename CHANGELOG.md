@@ -31,3 +31,5 @@ All notable project changes are documented here.
 
 - Reject negative payment amounts and missing/invalid currency codes in webhook payloads; reject invalid quality-gate thresholds.
 - Use monotonic time for attention-arbitration urgency intervals.
+
+- Cancel superseded CI and CodeQL runs on the same ref to avoid wasting runner capacity on stale commits.
