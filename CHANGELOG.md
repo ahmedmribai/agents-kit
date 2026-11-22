@@ -21,3 +21,6 @@ All notable project changes are documented here.
 - Validate staleness measurements and attention-arbitration configuration, rejecting invalid counts, costs, weights, budgets, and duplicate bid names.
 
 - Treat partial judge failures as UNKNOWN rather than passing on an incomplete score; expose the partial score for diagnostics.
+
+- Add a dependency-optional OpenAI Agents SDK output-guardrail integration example and guide.
+- Compile all package and example modules in CI, including optional integration examples.
