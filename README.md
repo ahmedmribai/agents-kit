@@ -32,7 +32,7 @@ The distribution is `agents-toolkit`; the import is `agents_kit`.
 agents_kit.webhook_rail   signed webhook verification, retry deduplication, explicit ledger contracts
 agents_kit.gates          quality gates with explicit UNKNOWN allow/block policy
 agents_kit.staleness      catch loops that run forever and produce nothing
-agents_kit.attention      budget arbitration that proves nothing starves
+agents_kit.attention      budget arbitration with starvation visibility
 agents_kit.delivery       validated HTTPS links and explicit fulfilment outcomes
 ```
 
