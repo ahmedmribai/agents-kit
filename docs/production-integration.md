@@ -46,14 +46,16 @@ through `GateResult.allowed`.
 The included monitor stores state in memory. It resets when the process restarts and does not
 coordinate across workers. Persist counters or export output-delta metrics if you need durable
 or distributed monitoring. Define "new output" carefully: rewriting the same records is not
-new output.
+new output. The API rejects negative, boolean, NaN, and infinite output counts, and requires a
+positive integer patience value.
 
 ## Attention arbiter
 
 The arbiter is a local heuristic, not a formal fairness scheduler. Its starvation report
 identifies bids that have never won, but it does not guarantee every bid will eventually run.
-Use `feasible()` during configuration and add a hard reservation, aging, or weighted-fair
-policy if every task must receive a guaranteed share of compute.
+It rejects negative/non-finite costs, invalid value/info ranges, duplicate bid names in one
+tick, and invalid budgets or weights. Use `feasible()` during configuration and add a hard
+reservation, aging, or weighted-fair policy if every task must receive a guaranteed share.
 
 ## Delivery
 
