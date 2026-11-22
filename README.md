@@ -1,4 +1,10 @@
-# The Agents Kit
+# Agents Kit
+
+[![CI](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedmribai/agents-kit/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/agents-toolkit)](https://pypi.org/project/agents-toolkit/)
+[![Python versions](https://img.shields.io/pypi/pyversions/agents-toolkit)](https://pypi.org/project/agents-toolkit/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 
 **Five things an autonomous agent gets wrong silently, and the code that stops each one.**
 
@@ -57,7 +63,7 @@ Four independent breaks, each individually silent, stacked:
 Any monitoring you would plausibly have — endpoint uptime, error rate, latency — was green
 throughout. The endpoint was *up*. Nothing ever asked it to do anything.
 
-**The fix is an order of operations**, in `kit/webhook_rail.py`:
+**The fix is an order of operations**, in `agents_kit/webhook_rail.py`:
 
 ```
 verify -> parse -> dedupe -> record -> fulfil
@@ -131,3 +137,30 @@ wrong theory ruled out first, and the one measurement that finally showed what w
 
 Code (`agents_kit/`, `tests/`): **MIT** — copy it, ship it, sell what you build with it.
 The written post-mortem is sold separately and is not MIT; see `LICENSE-POSTMORTEM.txt`.
+
+
+## Try the examples
+
+The repository includes a runnable walkthrough of the public APIs:
+
+```bash
+python examples/basic_usage.py
+```
+
+The examples use in-memory adapters and synthetic data. They are for learning and local
+experimentation, not production persistence or payment processing.
+
+## Production integration notes
+
+These modules are deliberately small primitives. They do not replace durable storage,
+database transactions, provider-specific webhook verification, distributed coordination,
+or end-to-end monitoring. Before using them in a live system, read
+[Production integration boundaries](docs/production-integration.md). In particular:
+
+- A webhook ledger must enforce event uniqueness with an atomic database constraint, and
+  fulfilment needs a durable recovery path such as an outbox.
+- `Verdict.UNKNOWN` is allowed by the quality-gate helper; security-sensitive callers
+  must decide whether that policy is appropriate.
+- The included staleness monitor is in-memory, and the attention arbiter does not guarantee
+  strict fairness.
+- Delivery idempotency depends on the caller's store and downstream provider behavior.
