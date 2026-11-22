@@ -6,7 +6,7 @@ already cost me weeks. Each one is standalone: copy the file, it has no dependen
 the standard library.
 
     webhook_rail  signed webhook verification, deduplication, and ledger contracts
-    gates         quality gates that fail OPEN on "couldn't measure", CLOSED on "measured bad"
+    gates         quality gates with explicit UNKNOWN allow/block policy
     staleness     detect repeated work that produces no new output
     attention     budget arbitration with starvation visibility
     delivery      idempotent fulfilment with explicit pending outcomes
