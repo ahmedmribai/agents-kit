@@ -5,7 +5,7 @@ labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: "Please avoid sharing secrets, payment details, customer data, or exploitable vulnerability details. Use the Security tab for private security reports."
+      value: "Please avoid sharing secrets, payment details, customer data, or exploitable vulnerability details. Use the Security tab's Report a vulnerability option if available; otherwise follow SECURITY.md."
   - type: input
     id: version
     attributes:
