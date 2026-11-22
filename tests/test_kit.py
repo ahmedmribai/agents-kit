@@ -7,6 +7,7 @@ If you change a module, these must stay green.
 import hashlib
 import hmac
 import json
+import math
 import time
 
 from agents_kit import attention, delivery, gates, staleness, webhook_rail
@@ -269,6 +270,26 @@ def test_report_ranks_worst_first():
         m.record("dead", 0)
     m.record("alive", 1)
     assert m.report()[0]["task"] == "dead" and m.report()[0]["stale"] is True
+
+
+
+def test_staleness_rejects_invalid_patience_and_output_counts():
+    for patience in (0, -1, True):
+        try:
+            staleness.StalenessMonitor(patience=patience)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid patience was accepted")
+
+    monitor = staleness.StalenessMonitor()
+    for produced in (-1, float("nan"), float("inf"), True):
+        try:
+            monitor.record("worker", produced)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid output measurement was accepted")
 
 
 # -- attention ----------------------------------------------------------------
