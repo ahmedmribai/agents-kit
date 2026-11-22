@@ -34,7 +34,8 @@ class Ledger(Protocol):
 
         Raise AlreadyHandled if another request has already inserted the event.
         The preceding seen() call is only a fast path, not a concurrency guard.
-        """ ...
+        """
+        ...
 
 
 @dataclass(frozen=True)
