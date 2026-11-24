@@ -37,6 +37,20 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
 
+      - name: Protect Python 3.9 from pytest 9+
+        run: |
+          python - <<'PY'
+          import sys
+          import pytest
+
+          if sys.version_info < (3, 10):
+              major = int(pytest.__version__.split(".", 1)[0])
+              assert major < 9, (
+                  f"Python 3.9 must use pytest <9, got {pytest.__version__}"
+              )
+          print(f"Python {sys.version_info.major}.{sys.version_info.minor}: pytest {pytest.__version__}")
+          PY
+
       - name: Verify package and citation version consistency
         run: |
           python - <<'PY'
