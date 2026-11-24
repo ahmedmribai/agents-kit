@@ -201,6 +201,7 @@ Install only the framework you plan to use (for example, `langchain`, `openai-ag
 
 - [Try the integrations](docs/integrations/)
 - [Help validate the first integrations](https://github.com/ahmedmribai/agents-kit/issues/3)
+- [Contribute an offline CrewAI tool-authorization example](https://github.com/ahmedmribai/agents-kit/issues/10)
 - [Report a reproducible bug](https://github.com/ahmedmribai/agents-kit/issues/new?template=bug_report.yml)
 
 A minimal reproduction with package/framework versions is more useful than a star. Please
