@@ -54,3 +54,20 @@ appropriate to your task and cost budget.
 
 The included checks are illustrative. Replace them with deterministic checks for your
 application's actual output contract. This is not a factuality guarantee.
+
+## Pre-tool authorization is a separate concern
+
+This guide covers **task-output guardrails**: checks that run on a task's produced output.
+They are not a pre-dispatch tool authorization hook and do not prevent a tool from being
+called in the first place.
+
+For a pre-tool decision, the application must own the authorization policy and identity
+source, wrap the side-effecting operation, and call
+`agents_kit.gates.evaluate(..., unknown_policy="block")` immediately before dispatch.
+The wrapper must invoke the underlying tool only when the result is allowed, and must
+fail closed on UNKNOWN, evaluator errors, and invalid results.
+
+Agents Kit does not claim that CrewAI exposes a native universal pre-tool hook. A narrowly
+scoped, offline application-owned example with a side-effect counter is being coordinated in
+[issue #10](https://github.com/ahmedmribai/agents-kit/issues/10). Any CrewAI-specific
+lifecycle integration must be separately verified against an exact CrewAI version.
