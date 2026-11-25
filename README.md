@@ -184,10 +184,24 @@ Integration guides: [OpenAI Agents SDK](docs/integrations/openai-agents-sdk.md),
 Bug reports and focused feature requests are welcome through the repository's issue templates.
 
 
-## First adopters wanted
+## Early external use and more adopters wanted
 
-Agents Kit is looking for its first external developers to try the framework adapters in
-small, real workflows and report what works, what fails, and what should change.
+Agents Kit has an initial **community-reported external experiment**. On 25 November 2026,
+the maintainer of [DSHCorrectover/guard-sdk](https://github.com/DSHCorrectover/guard-sdk)
+reported installing Agents Kit from `main` in a clean virtual environment and checking
+PASS and fail-closed UNKNOWN behavior. Their public
+[guard-sdk v0.2.0 commit](https://github.com/DSHCorrectover/guard-sdk/commit/4c333668d14803f09782a4357927af01e4f89611)
+explicitly credits Agents Kit's gate semantics and adapts related decision concepts into a
+separate JavaScript implementation.
+
+This is a useful reported experiment and downstream adaptation—not a direct dependency,
+official integration, production deployment claim, or verified CrewAI pre-tool hook.
+Agents Kit has not independently run the downstream project's test suite. The scope,
+evidence, and a source-review caveat about malformed expiry values are documented in
+[the guard-sdk interoperability note](docs/interop/guard-sdk.md).
+
+More independent developers are welcome to try the framework adapters in small, real
+workflows and report what works, what fails, and what should change.
 
 Until version 1.1.0 is published on PyPI, install the merged release candidate directly from
 GitHub:
