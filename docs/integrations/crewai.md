@@ -71,3 +71,37 @@ Agents Kit does not claim that CrewAI exposes a native universal pre-tool hook. 
 scoped, offline application-owned example with a side-effect counter is being coordinated in
 [issue #10](https://github.com/ahmedmribai/agents-kit/issues/10). Any CrewAI-specific
 lifecycle integration must be separately verified against an exact CrewAI version.
+
+## Pre-dispatch enforcement: coverage and trust boundaries
+
+A task-output guardrail is not a pre-tool authorization control. An application-owned wrapper
+can enforce a gate only for calls that actually pass through that wrapper. Do not infer that
+wrapping one tool or testing one invocation path protects every way an agent can reach a tool.
+
+For any application-owned pre-dispatch example:
+
+- enumerate the dispatch entry points the application exposes and route each through the
+  same gate; test each path with a side-effect counter;
+- evaluate the exact arguments that will be dispatched, and reject any post-decision
+  mutation or re-use of a decision for a different invocation;
+- record the decision before dispatch in a host-owned store, bound to a unique call ID,
+  run/agent identity, tool, canonical argument hash, policy version, verdict, and reason;
+- keep the authoritative writer and any signing key outside the agent's write/access domain;
+  a log line or an in-memory test double is not proof of tamper-resistant production storage.
+
+CrewAI PR [#7372](https://github.com/crewAIInc/crewAI/pull/7372) describes three previously
+missed tool-dispatch paths in Flow `ToolAction.run`, the OpenAI Agents adapter, and the
+LangGraph adapter. That PR is not treated here as merged or released. Verify exact framework
+versions and execution paths rather than claiming universal hook coverage.
+
+### Distributed budgets and uncertain dispatch outcomes
+
+Agents Kit does not provide a distributed budget ledger or reservation service. If an
+application enforces a hard shared budget, reservation must be atomic in durable state outside
+the worker/agent's write domain. A concurrency test should make two workers compete for the
+last unit and prove exactly one reaches dispatch.
+
+A dispatch timeout is an unknown outcome, not permission to retry. Keep the reservation
+associated with the original call until a run coordinator reconciles the provider outcome.
+Lease expiry is a liveness signal, not a release decision. The application must define who
+owns reconciliation, what happens at the deadline, and how the run owner is notified.
