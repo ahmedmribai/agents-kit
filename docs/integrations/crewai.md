@@ -98,10 +98,17 @@ versions and execution paths rather than claiming universal hook coverage.
 
 Agents Kit does not provide a distributed budget ledger or reservation service. If an
 application enforces a hard shared budget, reservation must be atomic in durable state outside
-the worker/agent's write domain. A concurrency test should make two workers compete for the
-last unit and prove exactly one reaches dispatch.
+the worker/agent's write domain. A concurrency test must race two workers against the authoritative reservation store
+for the last unit and prove exactly one reserves it and exactly one reaches dispatch. The
+reservation/spend record should bind the run, agent, tool, canonical argument hash, approving
+principal, policy ID/version, and unique call ID. A worker-owned counter is not an authoritative
+reservation store. A HALF-OPEN circuit-breaker probe is also a dispatch and must pass the same
+pre-dispatch authorization and reservation checks.
 
 A dispatch timeout is an unknown outcome, not permission to retry. Keep the reservation
-associated with the original call until a run coordinator reconciles the provider outcome.
-Lease expiry is a liveness signal, not a release decision. The application must define who
-owns reconciliation, what happens at the deadline, and how the run owner is notified.
+associated with the original call until a run coordinator reconciles the provider using the
+original request ID. Lease expiry is a liveness signal, not a release decision. If the outcome
+is still unknown at the deadline, pause the run and notify the owner with the request ID and
+last confirmed state; stopping the run must not release the reservation or authorize a second
+dispatch. Test this by killing the worker after dispatch, advancing beyond the deadline, and
+asserting zero redispatches and exactly one notification.
