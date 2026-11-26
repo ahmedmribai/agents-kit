@@ -31,3 +31,28 @@ This is a source-level review finding, not a claim that Agents Kit ran or penetr
 ## Agents Kit boundaries
 
 Agents Kit continues to provide decision primitives, not an identity provider or complete policy engine. Applications supply their identity evidence and policy and enforce the result immediately before a side effect. The existing [CrewAI guide](../integrations/crewai.md) documents task-output guardrails; a pre-tool wrapper is a separate application-owned pattern tracked in [Agents Kit issue #10](https://github.com/ahmedmribai/agents-kit/issues/10).
+## Additional downstream semantics to settle
+
+The v0.2.0 source adds expiry and supersession fields, but the reviewed change does not establish
+the full lifecycle/authority contract. Before treating these fields as production policy
+controls, the downstream project should specify and test:
+
+- **Expiry at dispatch:** Check a rule/decision's validity immediately before each new dispatch
+  and after any pause/resume that requires a new dispatch. A decision that expires before
+  dispatch must not authorize a new side effect; require a fresh evaluation. Expiry cannot
+  retroactively undo a side effect already dispatched, so that in-flight call must retain its
+  original call ID and be reconciled rather than silently retried under a new decision.
+- **Policy changes during a run:** State whether an already-dispatched call completes under the
+  decision snapshot recorded at admission, and require revalidation before a subsequent dispatch
+  when policy version, approver identity, agent identity, or requested scope changes.
+- **Supersession authority:** Define which authenticated principal or administrative process
+  may supersede a rule, the scope of that authority, and how the old rule, new rule, actor,
+  policy version, reason, and timestamp are recorded. A `supersedes` string without an
+  authorization check must not itself grant the right to override.
+- **Signer trust boundary:** State where the private key lives and why the agent cannot invoke
+  the signer arbitrarily. The verifier must obtain the public key from an independent trust
+  configuration and bind the receipt to the call ID, decision, policy version, and canonical
+  argument hash.
+
+These are review questions and recommended contracts, not claims that Agents Kit implements
+them or that the current downstream package has done so.
