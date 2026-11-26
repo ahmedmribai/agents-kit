@@ -112,3 +112,21 @@ is still unknown at the deadline, pause the run and notify the owner with the re
 last confirmed state; stopping the run must not release the reservation or authorize a second
 dispatch. Test this by killing the worker after dispatch, advancing beyond the deadline, and
 asserting zero redispatches and exactly one notification.
+
+### Decision persistence is part of the dispatch boundary
+
+A PASS verdict is necessary but not sufficient to dispatch when the application requires an
+authoritative decision record. The wrapper must write the record successfully **before**
+calling the tool:
+
+- Test the failure path: gate returns PASS, host-owned decision writer fails, and the tool
+  invocation counter remains zero.
+- Test the success path: the fake tool checks at entry that the record for its exact call ID
+  already exists in the host-owned test store.
+- Bind the persisted record to the same call ID, verdict, policy version, and canonical
+  argument hash used for dispatch.
+- Keep the writer/store capability out of the agent-facing tool object.
+
+These offline tests establish ordering and interface separation only. An in-memory test store
+does not prove production persistence is tamper-resistant or outside the agent's real
+infrastructure trust boundary.
