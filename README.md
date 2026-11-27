@@ -200,6 +200,10 @@ Agents Kit has not independently run the downstream project's test suite. The sc
 evidence, and a source-review caveat about malformed expiry values are documented in
 [the guard-sdk interoperability note](docs/interop/guard-sdk.md).
 
+A second independent check was reported by [@hummbl-dev in CrewAI #5888](https://github.com/crewAIInc/crewAI/issues/5888#issuecomment-7201300274). The developer reported a clean-venv run using `agents-toolkit 1.1.0` (associating the run with repository commit `a1c76cb`): PASS/BLOCK gate behavior, a raising judge producing UNKNOWN and being blocked under `unknown_policy="block"`, **56/56 repository tests passing**, and the presence of `build_task_guardrail` / `evaluate_output` in the CrewAI adapter.
+
+This remains an attributable developer report, not a maintainer-reproduced run. The comment does not state the install command/source or exact Python/CrewAI versions. It confirms the adapter API is present; it does **not** report an actual CrewAI agent-to-tool dispatch test or prove hook reach on the paths discussed in [CrewAI PR #7372](https://github.com/crewAIInc/crewAI/pull/7372). No PyPI-origin or production-deployment claim is inferred from it.
+
 More independent developers are welcome to try the framework adapters in small, real
 workflows and report what works, what fails, and what should change.
 
