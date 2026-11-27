@@ -113,6 +113,26 @@ last confirmed state; stopping the run must not release the reservation or autho
 dispatch. Test this by killing the worker after dispatch, advancing beyond the deadline, and
 asserting zero redispatches and exactly one notification.
 
+The pause and terminal-state rules must be enforced by the **dispatcher**, not left as an
+advisory flag for a worker to honor. While the run is paused, a fresh call must be rejected
+before any tool body executes. The waiting state also needs a finite bound: when the deadline
+expires without a confirmed outcome, transition the run to a terminal `failed_unknown_outcome`
+state and notify the owner once. Keep the original reservation held until an independent
+reconciler resolves it; neither worker/lease expiry nor stopping the run releases it.
+
+Settlement arriving after the run has entered `failed_unknown_outcome` must remain bound to
+the original call/request ID and be idempotent. The first valid settlement may resolve the
+reservation; a duplicate settlement is a no-op. Neither settlement may reopen the terminal
+run or authorize another dispatch.
+
+A coordinator-level regression sequence should therefore: kill the worker after dispatch;
+advance through the reconciliation deadline; assert no redispatch, one owner notification,
+terminal `failed_unknown_outcome`, and a still-held reservation; attempt a fresh call while
+paused and assert rejection before tool invocation; then deliver the original settlement twice
+and assert one reservation resolution, one no-op duplicate, and no run reopening. These are
+application/coordinator contract tests, not behavior provided by Agents Kit core or by the
+small offline wrapper in issue #10.
+
 ### Decision persistence is part of the dispatch boundary
 
 A PASS verdict is necessary but not sufficient to dispatch when the application requires an
